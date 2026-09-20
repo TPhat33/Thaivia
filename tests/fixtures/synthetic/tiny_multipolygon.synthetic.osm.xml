@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC FIXTURE: synthetic=true. Hand-authored for unit tests only.
+     NOT real OSM data, retrieved from no live source, and does not
+     represent any real place in Thailand. Used to test multipolygon
+     (building-with-hole) parsing without ever passing the G1 real-data
+     gate. -->
+<osm version="0.6" generator="thaivia-test-fixture-synthetic">
+  <node id="-1" lat="13.0010000" lon="100.0010000" />
+  <node id="-2" lat="13.0010000" lon="100.0020000" />
+  <node id="-3" lat="13.0020000" lon="100.0020000" />
+  <node id="-4" lat="13.0020000" lon="100.0010000" />
+  <node id="-5" lat="13.0013000" lon="100.0013000" />
+  <node id="-6" lat="13.0013000" lon="100.0017000" />
+  <node id="-7" lat="13.0017000" lon="100.0017000" />
+  <node id="-8" lat="13.0017000" lon="100.0013000" />
+  <way id="-101">
+    <nd ref="-1" />
+    <nd ref="-2" />
+    <nd ref="-3" />
+    <nd ref="-4" />
+    <nd ref="-1" />
+    <tag k="synthetic" v="true" />
+  </way>
+  <way id="-102">
+    <nd ref="-5" />
+    <nd ref="-6" />
+    <nd ref="-7" />
+    <nd ref="-8" />
+    <nd ref="-5" />
+    <tag k="synthetic" v="true" />
+  </way>
+  <relation id="-201">
+    <member type="way" ref="-101" role="outer" />
+    <member type="way" ref="-102" role="inner" />
+    <tag k="type" v="multipolygon" />
+    <tag k="building" v="yes" />
+    <tag k="synthetic" v="true" />
+  </relation>
+</osm>

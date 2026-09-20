@@ -1,0 +1,61 @@
+{
+  "synthetic": true,
+  "synthetic_notice": "Hand-authored test geometry for unit tests only. NOT real OSM data, does not represent any real place in Thailand, and must never be used to pass the G1 real-data gate.",
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "road",
+        "highway": "residential",
+        "name": "Synthetic Test Road A",
+        "oneway": "-1"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [100.001, 13.001],
+          [100.002, 13.0015],
+          [100.0035, 13.001]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "road",
+        "highway": "residential",
+        "name": "Synthetic Test Road B",
+        "layer": "1",
+        "bridge": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [100.0025, 13.0005],
+          [100.0025, 13.0025]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "building",
+        "building": "yes",
+        "levels": "unknown"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [100.0005, 13.0005],
+            [100.0012, 13.0005],
+            [100.0012, 13.0012],
+            [100.0005, 13.0012],
+            [100.0005, 13.0005]
+          ]
+        ]
+      }
+    }
+  ]
+}
