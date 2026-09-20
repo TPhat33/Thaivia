@@ -1,0 +1,81 @@
+{
+  "$comment": "Allowed OSM source endpoints and their last-confirmed reachability from this container, per the organization's egress policy. `thaivia doctor` re-probes reachability live; the fields below are what was confirmed during the G0 session on 2026-09-20 and are not automatically kept in sync. Only Geofabrik/Overpass-family endpoints are permitted sources for real OSM geometry: no Google Maps/Street View tracing, no bulk public tile downloads, per project policy.",
+  "checked_at": "2026-09-20",
+  "sources": [
+    {
+      "name": "geofabrik-thailand-pbf",
+      "kind": "bulk_extract",
+      "base_url": "https://download.geofabrik.de/asia/thailand-latest.osm.pbf",
+      "probe_url": "https://download.geofabrik.de/asia/thailand-latest.osm.pbf",
+      "license_notice_url": "https://www.geofabrik.de/geofabrik/free.html",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    },
+    {
+      "name": "overpass-api-de",
+      "kind": "bounded_query",
+      "base_url": "https://overpass-api.de/api/interpreter",
+      "probe_url": "https://overpass-api.de/api/interpreter",
+      "license_notice_url": "https://wiki.openstreetmap.org/wiki/Overpass_API",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    },
+    {
+      "name": "overpass-kumi-systems",
+      "kind": "bounded_query",
+      "base_url": "https://overpass.kumi.systems/api/interpreter",
+      "probe_url": "https://overpass.kumi.systems/api/interpreter",
+      "license_notice_url": "https://wiki.openstreetmap.org/wiki/Overpass_API",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    },
+    {
+      "name": "openstreetmap-api",
+      "kind": "api",
+      "base_url": "https://api.openstreetmap.org/",
+      "probe_url": "https://api.openstreetmap.org/",
+      "license_notice_url": "https://www.openstreetmap.org/copyright",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    },
+    {
+      "name": "geofabrik-osm-internal",
+      "kind": "bulk_extract",
+      "base_url": "https://osm-internal.download.geofabrik.de/",
+      "probe_url": "https://osm-internal.download.geofabrik.de/",
+      "license_notice_url": "https://www.geofabrik.de/geofabrik/free.html",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    },
+    {
+      "name": "download-openstreetmap-fr",
+      "kind": "bulk_extract",
+      "base_url": "https://download.openstreetmap.fr/",
+      "probe_url": "https://download.openstreetmap.fr/",
+      "license_notice_url": "https://www.openstreetmap.org/copyright",
+      "recorded_status": "blocked",
+      "recorded_status_detail": "403 on CONNECT via organization egress proxy (policy denial), confirmed 2026-09-20. See docs/environment.md.",
+      "allowed_by_policy": true,
+      "reachable_from_container": false
+    }
+  ],
+  "prohibited_sources": [
+    "Google Maps / Google Street View tracing",
+    "screenshots-as-database",
+    "bulk public tile download (e.g. scraping XYZ tile servers as vector truth)"
+  ],
+  "manual_unblock": {
+    "$comment": "Smallest human step if none of the above become reachable: obtain a licensed .osm.pbf or .osm.xml snapshot covering configs/pilot-area.json's bbox + context buffer through a channel you are authorized to use, and place it at data/cache/ manually. See docs/decisions/0003-osm-source-acquisition-blocked.md.",
+    "drop_file_dir": "data/cache/"
+  }
+}

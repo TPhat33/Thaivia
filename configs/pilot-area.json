@@ -1,0 +1,28 @@
+{
+  "$comment": "Pilot AOI defaults from IMPLEMENTATION_PLAN.th.md section 5. This bbox is a development crop only, not an administrative boundary, and coverage has NOT been verified because no OSM source has been acquired yet (blocked, see docs/decisions/0003). Do not treat this as confirmed usable until docs/data/pilot-audit.md reports real feature counts.",
+  "map_id": "th-bkk-pilot-001",
+  "editable_bbox_wgs84_lonlat": [100.586, 13.710, 100.595, 13.719],
+  "context_buffer_m": 300,
+  "candidate_projected_crs": "EPSG:32647",
+  "driving_side": "left",
+  "coverage_status": "UNVERIFIED",
+  "coverage_status_reason": "No OSM source has been acquired; source acquisition is blocked by organization egress policy as of 2026-09-20 (see docs/environment.md and ADR-0003).",
+  "target_area_sq_km": {
+    "min": 0.5,
+    "max": 1.5,
+    "$comment": "Experimental target from the plan, not a measured result."
+  },
+  "acquire_budget": {
+    "max_download_bytes": 26214400,
+    "$comment_max_download_bytes": "25 MiB soft cap for a small bounded extract of the pilot bbox + context buffer. A country-sized .osm.pbf download requires explicit human approval and must not be triggered automatically.",
+    "connect_timeout_s": 10,
+    "read_timeout_s": 60,
+    "max_retries": 3,
+    "retry_backoff_s": [2, 4, 8],
+    "honor_retry_after_header": true,
+    "max_disk_bytes_cache": 209715200,
+    "$comment_max_disk_bytes_cache": "200 MiB soft cap for everything under data/cache/.",
+    "require_human_approval_above_bytes": 104857600,
+    "$comment_require_human_approval_above_bytes": "Any single acquisition estimated above 100 MiB must stop and ask a human before downloading, per project policy (no automatic country-sized downloads)."
+  }
+}
