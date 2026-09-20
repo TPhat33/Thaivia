@@ -1,0 +1,67 @@
+# General text normalization: normalize line endings to LF in the repo,
+# check out as LF everywhere (this project does not target native
+# Windows CRLF workflows).
+* text=auto eol=lf
+
+# --- Unity policy (applies once game/ holds a real Unity project; see
+# docs/decisions/0002-unity-unverifiable-in-this-environment.md for why
+# no Unity project exists yet in G0) ---
+#
+# Force YAML (text) serialization for scenes/prefabs/assets so diffs are
+# readable and mergeable, and mark .meta files as text so GUIDs/importer
+# settings are diffable. This repo does not commit ProjectVersion.txt or
+# any other Unity metadata implying the Editor has been opened until a
+# real Editor session has produced it (see ADR-0002).
+*.cs        text diff=csharp
+*.meta      text
+*.unity     text
+*.prefab    text
+*.asset     text
+*.mat       text
+*.anim      text
+*.controller text
+*.physicMaterial text
+*.physicsMaterial2D text
+*.guiskin   text
+*.fontsettings text
+*.overrideController text
+*.mask      text
+*.mixer     text
+*.shadervariants text
+*.preset    text
+*.terrainlayer text
+
+# --- Binary asset policy: real binary Unity/game assets are Git LFS
+# candidates once they exist. No such assets exist yet in G0 (no art,
+# no audio, no 3D models have been committed); this section documents
+# the decision in advance so future asset commits are LFS-tracked from
+# the first commit, not migrated after the fact.
+*.png       filter=lfs diff=lfs merge=lfs -text
+*.jpg       filter=lfs diff=lfs merge=lfs -text
+*.jpeg      filter=lfs diff=lfs merge=lfs -text
+*.tga       filter=lfs diff=lfs merge=lfs -text
+*.psd       filter=lfs diff=lfs merge=lfs -text
+*.tif       filter=lfs diff=lfs merge=lfs -text
+*.tiff      filter=lfs diff=lfs merge=lfs -text
+*.gif       filter=lfs diff=lfs merge=lfs -text
+*.fbx       filter=lfs diff=lfs merge=lfs -text
+*.obj       filter=lfs diff=lfs merge=lfs -text
+*.wav       filter=lfs diff=lfs merge=lfs -text
+*.mp3       filter=lfs diff=lfs merge=lfs -text
+*.ogg       filter=lfs diff=lfs merge=lfs -text
+*.mp4       filter=lfs diff=lfs merge=lfs -text
+*.osm.pbf   filter=lfs diff=lfs merge=lfs -text
+*.mappack   filter=lfs diff=lfs merge=lfs -text
+
+# Small text-based data (JSON configs, GeoJSON test fixtures, MapPack
+# manifests) is NOT LFS-tracked: it stays as plain diffable text so
+# reviewers can read what changed.
+*.json      text
+*.geojson   text
+*.xml       text
+
+# Note: Git LFS itself is not yet installed/verified in this container
+# (see docs/environment.md). The filters above only take effect once
+# `git lfs install` has been run for a given clone; until then, adding a
+# binary asset that matches one of these patterns will fail loudly
+# rather than silently bypassing LFS, which is the intended behavior.

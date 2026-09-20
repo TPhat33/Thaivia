@@ -1,0 +1,48 @@
+# Python tooling
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+tools/map_pipeline/build/
+tools/map_pipeline/dist/
+
+# Local OSM source cache and generated MapPacks (never committed; these
+# are either licensed source data or build output, not source code).
+data/cache/
+content/mappacks/
+
+# Unity (populated once a real Unity project exists; harmless while empty)
+game/[Ll]ibrary/
+game/[Tt]emp/
+game/[Oo]bj/
+game/[Bb]uild/
+game/[Bb]uilds/
+game/[Ll]ogs/
+game/[Mm]emoryCaptures/
+game/[Uu]serSettings/
+game/.vs/
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+crashlytics-build.properties
+
+# .NET (wave 3 simulation core)
+[Bb]in/
+[Oo]bj/
+*.user
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local scratch, never intentional repo content
+/tmp/

@@ -1,0 +1,3 @@
+Reserved for generated content: baked MapPacks (content/mappacks/) and
+other pipeline output. Empty in G0 because no real OSM source has been
+acquired yet (see docs/decisions/0003-osm-source-acquisition-blocked.md).
