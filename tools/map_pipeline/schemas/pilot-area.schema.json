@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thaivia.local/schemas/pilot-area.schema.json",
+  "title": "Pilot area config",
+  "description": "Defines the pilot AOI, its CRS candidate, and the acquire step's network/disk budget. See IMPLEMENTATION_PLAN.th.md section 5.",
+  "type": "object",
+  "required": [
+    "map_id",
+    "editable_bbox_wgs84_lonlat",
+    "context_buffer_m",
+    "candidate_projected_crs",
+    "driving_side",
+    "coverage_status",
+    "acquire_budget"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "map_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 3
+    },
+    "editable_bbox_wgs84_lonlat": {
+      "type": "array",
+      "description": "[min_lon, min_lat, max_lon, max_lat] in WGS84 degrees, always_xy order.",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "context_buffer_m": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "candidate_projected_crs": {
+      "type": "string",
+      "pattern": "^EPSG:[0-9]+$"
+    },
+    "driving_side": {
+      "type": "string",
+      "enum": ["left", "right"]
+    },
+    "coverage_status": {
+      "type": "string",
+      "enum": ["UNVERIFIED", "VERIFIED_SPARSE", "VERIFIED_USABLE", "VERIFIED_REJECTED"]
+    },
+    "coverage_status_reason": { "type": "string" },
+    "target_area_sq_km": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "number", "exclusiveMinimum": 0 },
+        "max": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "acquire_budget": {
+      "type": "object",
+      "description": "Network/disk budget for `thaivia acquire`. No automatic country-sized downloads.",
+      "required": [
+        "max_download_bytes",
+        "connect_timeout_s",
+        "read_timeout_s",
+        "max_retries",
+        "retry_backoff_s",
+        "honor_retry_after_header",
+        "max_disk_bytes_cache",
+        "require_human_approval_above_bytes"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "max_download_bytes": { "type": "integer", "exclusiveMinimum": 0 },
+        "connect_timeout_s": { "type": "number", "exclusiveMinimum": 0 },
+        "read_timeout_s": { "type": "number", "exclusiveMinimum": 0 },
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "retry_backoff_s": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 }
+        },
+        "honor_retry_after_header": { "type": "boolean" },
+        "max_disk_bytes_cache": { "type": "integer", "exclusiveMinimum": 0 },
+        "require_human_approval_above_bytes": { "type": "integer", "exclusiveMinimum": 0 }
+      }
+    }
+  }
+}

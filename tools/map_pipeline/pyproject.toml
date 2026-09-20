@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "map_pipeline"
+version = "0.1.0"
+description = "Thailand Urban Repair - real-OSM map acquisition and normalization pipeline (G0 bootstrap)"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Thailand Urban Repair project" }]
+
+dependencies = [
+    # NOTE: the PyPI project formerly named "pyosmium" was renamed to
+    # "osmium" (import name has always been `import osmium`). "pyosmium"
+    # no longer resolves on PyPI as of this writing (confirmed 2026-09-20,
+    # see docs/evidence/g0-pip-resolve-pyosmium.log). Depend on the
+    # current name.
+    "osmium>=4.0,<5",
+    "pyproj>=3.6,<4",
+    "shapely>=2.0,<3",
+    "jsonschema>=4.20,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9",
+    "pip-tools>=7.4,<8",
+]
+
+[project.scripts]
+thaivia = "map_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

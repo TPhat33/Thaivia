@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thaivia.local/schemas/sources.schema.json",
+  "title": "Allowed OSM source endpoints",
+  "description": "Describes candidate OSM source endpoints, their license notices, and their last-confirmed reachability from this environment.",
+  "type": "object",
+  "required": ["sources"],
+  "additionalProperties": true,
+  "properties": {
+    "checked_at": { "type": "string" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "base_url",
+          "recorded_status",
+          "allowed_by_policy",
+          "reachable_from_container"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": {
+            "type": "string",
+            "enum": ["bulk_extract", "bounded_query", "api"]
+          },
+          "base_url": { "type": "string", "format": "uri" },
+          "probe_url": { "type": "string", "format": "uri" },
+          "license_notice_url": { "type": "string", "format": "uri" },
+          "recorded_status": {
+            "type": "string",
+            "enum": ["available", "blocked", "unverified"]
+          },
+          "recorded_status_detail": { "type": "string" },
+          "allowed_by_policy": { "type": "boolean" },
+          "reachable_from_container": { "type": "boolean" }
+        }
+      }
+    },
+    "prohibited_sources": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "manual_unblock": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
