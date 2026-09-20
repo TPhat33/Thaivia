@@ -1,0 +1,6 @@
+$ git branch -a && echo '---' && git remote -v
+--- output ---
+---
+origin	https://github.com/TPhat33/Thaivia (fetch)
+origin	https://github.com/TPhat33/Thaivia (push)
+--- exit code: 0 ---

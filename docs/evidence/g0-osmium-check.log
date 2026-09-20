@@ -1,0 +1,4 @@
+$ which osmium || echo 'osmium: not found'
+--- output ---
+osmium: not found
+--- exit code: 0 ---

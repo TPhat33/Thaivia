@@ -1,0 +1,4 @@
+$ /usr/local/bin/python3 --version
+--- output ---
+Python 3.11.15
+--- exit code: 0 ---

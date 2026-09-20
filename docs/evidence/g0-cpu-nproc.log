@@ -1,0 +1,4 @@
+$ nproc
+--- output ---
+4
+--- exit code: 0 ---

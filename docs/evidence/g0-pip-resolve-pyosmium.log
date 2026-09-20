@@ -1,0 +1,13 @@
+$ ./.venv/bin/pip-compile --output-file=... tools/map_pipeline/pyproject.toml --extra dev  (with dependency "pyosmium>=3.7,<4")
+--- output ---
+ERROR: Could not find a version that satisfies the requirement pyosmium<4,>=3.7 (from versions: none)
+pip._internal.exceptions.DistributionNotFound: No matching distribution found for pyosmium<4,>=3.7
+
+Root cause investigated via PyPI JSON API:
+$ curl -sS -o /dev/null -w "%{http_code}" https://pypi.org/pypi/pyosmium/json
+404
+$ curl -sS -o /dev/null -w "%{http_code}" https://pypi.org/pypi/osmium/json
+200
+
+Conclusion: the PyPI project historically named 'pyosmium' is now published under the name 'osmium' (import name was always `import osmium`). pyproject.toml was corrected to depend on osmium>=4.0,<5. osmium 4.3.1 ships a cp311-manylinux_2_27-x86_64 wheel, confirmed compatible with this container's Python 3.11.15.
+--- exit code: 1 (DistributionNotFound before correction; resolved after renaming the dependency) ---

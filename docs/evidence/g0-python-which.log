@@ -1,0 +1,4 @@
+$ which python3
+--- output ---
+/usr/local/bin/python3
+--- exit code: 0 ---

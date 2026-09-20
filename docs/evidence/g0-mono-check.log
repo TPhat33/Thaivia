@@ -1,0 +1,4 @@
+$ which mono || echo 'mono: not found'
+--- output ---
+mono: not found
+--- exit code: 0 ---

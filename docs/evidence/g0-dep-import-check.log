@@ -1,0 +1,10 @@
+$ ./.venv/bin/python -c "..." (verify imports + importlib.metadata versions)
+--- output ---
+python 3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]
+osmium import OK, dist version 4.3.1
+pyproj import OK, version 3.7.2
+shapely import OK, version 2.1.2
+jsonschema import OK, dist version 4.26.0
+pytest import OK, version 8.4.2
+map_pipeline import OK, version 0.1.0
+--- exit code: 0 ---

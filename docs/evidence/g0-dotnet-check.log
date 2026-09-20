@@ -1,0 +1,4 @@
+$ which dotnet || echo 'dotnet: not found'
+--- output ---
+dotnet: not found
+--- exit code: 0 ---

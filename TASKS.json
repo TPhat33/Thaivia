@@ -1,0 +1,307 @@
+{
+  "$comment": "Backlog for Thailand Urban Repair. Gates follow IMPLEMENTATION_PLAN.th.md section 16. Status is only 'done' when a real command/test run backs it (see docs/evidence/). Updated at the end of each session per AGENTS.md.",
+  "updated_at": "2026-09-20",
+  "tasks": [
+    {
+      "id": "G0-01",
+      "gate": "G0",
+      "title": "Repo skeleton per plan section 17 (game/, tools/map_pipeline/, content/, configs/, tests/, docs/)",
+      "dependencies": [],
+      "acceptance_criteria": "All top-level directories exist; game/ and content/ carry .gitkeep with an honest status note; no fabricated Unity/package files.",
+      "status": "done",
+      "evidence": ["directory listing at repo root"]
+    },
+    {
+      "id": "G0-02",
+      "gate": "G0",
+      "title": "Environment audit (docs/environment.md) with real command evidence",
+      "dependencies": ["G0-01"],
+      "acceptance_criteria": "Every row cites an exact command + exit code captured under docs/evidence/; available/missing/blocked/unverified stated truthfully, no guessing.",
+      "status": "done",
+      "evidence": ["docs/environment.md", "docs/evidence/g0-*.log"]
+    },
+    {
+      "id": "G0-03",
+      "gate": "G0",
+      "title": "Python toolchain: installable map_pipeline package, venv, pinned+hashed lock, verified imports",
+      "dependencies": ["G0-01"],
+      "acceptance_criteria": "pip install -r requirements.txt succeeds from real wheels; osmium/pyproj/shapely/jsonschema/pytest all import on Python 3.11; versions recorded.",
+      "status": "done",
+      "evidence": [
+        "tools/map_pipeline/pyproject.toml",
+        "requirements.txt",
+        "docs/evidence/g0-dep-import-check.log",
+        "docs/evidence/g0-pip-resolve-pyosmium.log"
+      ]
+    },
+    {
+      "id": "G0-04",
+      "gate": "G0",
+      "title": "configs/pilot-area.json + JSON Schema + validating test",
+      "dependencies": ["G0-01"],
+      "acceptance_criteria": "Config matches spec defaults (th-bkk-pilot-001 bbox, context buffer, CRS, driving side), has acquire_budget with network/disk limits, coverage_status=UNVERIFIED, validates against schema in a passing pytest test.",
+      "status": "done",
+      "evidence": [
+        "configs/pilot-area.json",
+        "tools/map_pipeline/schemas/pilot-area.schema.json",
+        "tests/test_config_schemas.py"
+      ]
+    },
+    {
+      "id": "G0-05",
+      "gate": "G0",
+      "title": "configs/sources.json + JSON Schema + validating test",
+      "dependencies": ["G0-01"],
+      "acceptance_criteria": "Lists all allowed OSM source endpoints with recorded reachability status from this session, prohibited sources, manual unblock instructions; validates against schema.",
+      "status": "done",
+      "evidence": [
+        "configs/sources.json",
+        "tools/map_pipeline/schemas/sources.schema.json",
+        "tests/test_config_schemas.py"
+      ]
+    },
+    {
+      "id": "G0-06",
+      "gate": "G0",
+      "title": "`thaivia doctor` — real environment/dep/config/cache/reachability check",
+      "dependencies": ["G0-03", "G0-04", "G0-05"],
+      "acceptance_criteria": "Exits 0 with no hard problems in this environment; exits non-zero on a real hard failure (missing dep import, invalid config, unsupported python); reachability probe distinguishes blocked vs unverified.",
+      "status": "done",
+      "evidence": ["docs/evidence/g0-doctor-run.log", "tests/test_cli_smoke.py"]
+    },
+    {
+      "id": "G0-07",
+      "gate": "G0",
+      "title": "`thaivia acquire`/`build`/`audit`/`verify` CLI stubs — real argparse, honest not-implemented exit code",
+      "dependencies": ["G0-06"],
+      "acceptance_criteria": "Each subcommand parses args and exits with exit_codes.NOT_IMPLEMENTED (3), never 0; message names the concrete blocker/dependency.",
+      "status": "done",
+      "evidence": ["docs/evidence/g0-cli-stub-commands.log", "tests/test_cli_smoke.py"]
+    },
+    {
+      "id": "G0-08",
+      "gate": "G0",
+      "title": "pytest harness: config-schema tests, CLI smoke tests, synthetic-fixture-labelling test",
+      "dependencies": ["G0-04", "G0-05", "G0-06", "G0-07"],
+      "acceptance_criteria": "pytest run is green; fixtures live under tests/fixtures/synthetic/ and every fixture carries an explicit synthetic marker; a test fails if that marker is missing or a fixture references a real source domain.",
+      "status": "done",
+      "evidence": ["docs/evidence/g0-pytest-run.log", "tests/"]
+    },
+    {
+      "id": "G0-09",
+      "gate": "G0",
+      "title": "ADR-0001..0004 (Python 3.11, Unity unverifiable, OSM acquisition blocked, ODbL licensing)",
+      "dependencies": ["G0-02"],
+      "acceptance_criteria": "Each ADR states context, real decision, impact, and (where relevant) the smallest human unblock step.",
+      "status": "done",
+      "evidence": ["docs/decisions/0001-python-3.11-instead-of-3.12.md", "docs/decisions/0002-unity-unverifiable-in-this-environment.md", "docs/decisions/0003-osm-source-acquisition-blocked.md", "docs/decisions/0004-osm-odbl-licensing.md"]
+    },
+    {
+      "id": "G0-10",
+      "gate": "G0",
+      "title": "docs/data/pilot-audit.md placeholder with honest not_measured fields",
+      "dependencies": ["G0-09"],
+      "acceptance_criteria": "States status: blocked, no source data acquired; every count field is explicitly not_measured, not guessed.",
+      "status": "done",
+      "evidence": ["docs/data/pilot-audit.md"]
+    },
+    {
+      "id": "G0-11",
+      "gate": "G0",
+      "title": ".gitignore / .gitattributes with Unity text-serialization, binary, and LFS policy",
+      "dependencies": ["G0-01"],
+      "acceptance_criteria": "Unity-relevant text assets forced to text diff; binary asset extensions routed to LFS filters in advance of any asset existing; venv/cache/build output ignored.",
+      "status": "done",
+      "evidence": [".gitignore", ".gitattributes", "docs/evidence/g0-git-lfs-check.log"]
+    },
+    {
+      "id": "G0-12",
+      "gate": "G0",
+      "title": "AGENTS.md (distilled working rules) + README.md (honest current-state statement)",
+      "dependencies": ["G0-09"],
+      "acceptance_criteria": "README states plainly that no real map is imported and no Unity build exists yet; AGENTS.md captures no-fake-data, three-layer separation, evidence, and human-approval rules.",
+      "status": "done",
+      "evidence": ["AGENTS.md", "README.md"]
+    },
+    {
+      "id": "G0-13",
+      "gate": "G0",
+      "title": "Bounded dotnet-sdk-8.0 apt experiment (for wave-3 dotnet test readiness)",
+      "dependencies": [],
+      "acceptance_criteria": "Single timeboxed apt-get install attempt, real outcome recorded either way, no PPAs added, no other system-wide installs.",
+      "status": "done",
+      "evidence": ["docs/evidence/g0-dotnet-experiment.log"]
+    },
+    {
+      "id": "G1-01",
+      "gate": "G1",
+      "title": "Implement `thaivia acquire`: real bounded OSM extract against configs/sources.json, honoring acquire_budget",
+      "dependencies": ["G0-07"],
+      "acceptance_criteria": "Downloads a bounded extract (not a country-sized file) within max_download_bytes/timeout/retry budget, honors 429/Retry-After, freezes response as a hashed local fixture; asks for human approval above require_human_approval_above_bytes.",
+      "status": "blocked",
+      "blocker": "All configured OSM source endpoints are blocked by organization egress policy (see docs/decisions/0003-osm-source-acquisition-blocked.md). Needs a human to allowlist an endpoint or drop a licensed .osm.pbf/.osm.xml into data/cache/."
+    },
+    {
+      "id": "G1-02",
+      "gate": "G1",
+      "title": "Source lock: URL, retrieval time, source snapshot time (or unknown reason), SHA-256, importer/settings version",
+      "dependencies": ["G1-01"],
+      "acceptance_criteria": "A machine-readable lock file is written alongside the cached source and referenced by the eventual MapPack manifest.",
+      "status": "blocked",
+      "blocker": "Depends on G1-01."
+    },
+    {
+      "id": "G1-03",
+      "gate": "G1",
+      "title": "Entity parse: nodes/ways/relations with references (not display-GeoJSON-only)",
+      "dependencies": ["G1-01"],
+      "acceptance_criteria": "Parser builds the graph from raw OSM entities and references, not from a flattened GeoJSON export; complete_ways vs complete_relations handled explicitly.",
+      "status": "blocked",
+      "blocker": "Depends on G1-01 for a real source; can be scaffolded and unit-tested against tests/fixtures/synthetic/ ahead of time, but that does not pass the real-data gate."
+    },
+    {
+      "id": "G1-04",
+      "gate": "G1",
+      "title": "Project/normalize: WGS84 lon/lat -> AOI-appropriate projected CRS -> local origin, always_xy",
+      "dependencies": ["G1-03"],
+      "acceptance_criteria": "Round-trip error <=0.10 m; no lon/lat swap; no raw-degrees-as-meters; CRS choice not hardcoded across all of Thailand.",
+      "status": "blocked",
+      "blocker": "Depends on G1-03."
+    },
+    {
+      "id": "G1-05",
+      "gate": "G1",
+      "title": "Topology validation: multipolygon holes, missing references, building parts, duplicate POI/building associations",
+      "dependencies": ["G1-03", "G1-04"],
+      "acceptance_criteria": "Holes/multipart features do not become duplicate buildings; unsupported cases land in a report, not a silent drop.",
+      "status": "blocked",
+      "blocker": "Depends on G1-03/G1-04."
+    },
+    {
+      "id": "G1-06",
+      "gate": "G1",
+      "title": "Semantic RoadGraph builder: oneway (incl. -1), access/modes, bridge/tunnel/layer, turn restrictions, grade separation",
+      "dependencies": ["G1-04", "G1-05"],
+      "acceptance_criteria": "Crossing polylines at different layers never become an intersection; oneway=-1 and turn restrictions survive; unsupported restriction types are reported, not silently dropped.",
+      "status": "blocked",
+      "blocker": "Depends on G1-04/G1-05."
+    },
+    {
+      "id": "G1-07",
+      "gate": "G1",
+      "title": "Editable interior + read-only context buffer + external gateways",
+      "dependencies": ["G1-06"],
+      "acceptance_criteria": "Roads leaving the crop never silently become dead ends; gateways carry bounded simulated demand/capacity, not infinite sink/source.",
+      "status": "blocked",
+      "blocker": "Depends on G1-06."
+    },
+    {
+      "id": "G1-08",
+      "gate": "G1",
+      "title": "MapPack bake: immutable/versioned, provenance, quality report, OSM/ODbL notices",
+      "dependencies": ["G1-05", "G1-06", "G1-07"],
+      "acceptance_criteria": "Deterministic payload for the same source+settings; ships attribution/ODbL notice per ADR-0004; quality report lists unknowns/dropped/quarantined feature IDs with reasons.",
+      "status": "blocked",
+      "blocker": "Depends on G1-05/06/07."
+    },
+    {
+      "id": "G1-09",
+      "gate": "G1",
+      "title": "Wire `thaivia build` and `thaivia audit` to the real pipeline",
+      "dependencies": ["G1-08"],
+      "acceptance_criteria": "`thaivia build` produces a real MapPack from an acquired source; `thaivia audit` regenerates docs/data/pilot-audit.md with real counts, replacing the not_measured placeholders.",
+      "status": "blocked",
+      "blocker": "Depends on G1-08."
+    },
+    {
+      "id": "G1-10",
+      "gate": "G1",
+      "title": "Real docs/data/pilot-audit.md for th-bkk-pilot-001",
+      "dependencies": ["G1-09"],
+      "acceptance_criteria": "Reports real source snapshot/hash, feature inventory, known/unknown attributes, topology conflicts, retained/rejected counts, and a real usability verdict for the crop.",
+      "status": "blocked",
+      "blocker": "Depends on G1-09."
+    },
+    {
+      "id": "G1-11",
+      "gate": "G1",
+      "title": "Pipeline correctness tests per plan's test list (lon/lat round-trip, grade separation, oneway=-1/turn restrictions, holes/multipart, source-gap-not-empty-space, buffered crop, deterministic pack, unknown-fields-stay-unknown)",
+      "dependencies": ["G1-04", "G1-05", "G1-06", "G1-07", "G1-08"],
+      "acceptance_criteria": "Each listed invariant has a passing pytest test, runnable against both synthetic fixtures and (once available) the real pilot extract.",
+      "status": "blocked",
+      "blocker": "Depends on the pipeline stages above existing."
+    },
+    {
+      "id": "G2-01",
+      "gate": "G2",
+      "title": "Real Unity project bootstrap via Editor/Hub (idempotent Editor script)",
+      "dependencies": [],
+      "acceptance_criteria": "A clean Unity 6.3 LTS project (patch chosen after checking official docs on a machine that has Unity) opens and builds; no fabricated ProjectVersion.txt/package lock.",
+      "status": "blocked",
+      "blocker": "No Unity Editor, license, or download access in this environment (see docs/decisions/0002-unity-unverifiable-in-this-environment.md). Needs a human with a licensed Unity install, or egress allowlisting for download.unity3d.com."
+    },
+    {
+      "id": "G2-02",
+      "gate": "G2",
+      "title": "Unity MapPack loader (C#)",
+      "dependencies": ["G1-08", "G2-01"],
+      "acceptance_criteria": "Loads a local MapPack, validates its manifest hash/schema, exposes GeographyBase/SimulationInitialization/PlayerDelta as separate structures.",
+      "status": "blocked",
+      "blocker": "Depends on G1-08 (a real MapPack to load) and G2-01 (a Unity project to load it into)."
+    },
+    {
+      "id": "G2-03",
+      "gate": "G2",
+      "title": "Viewer rendering: top-down + oblique of the same geometry, roads/buildings/water/bridges, no grid-snapping",
+      "dependencies": ["G2-02"],
+      "acceptance_criteria": "Same source geometry renders correctly from both camera angles; grade separation stays visually distinct.",
+      "status": "blocked",
+      "blocker": "Depends on G2-02."
+    },
+    {
+      "id": "G2-04",
+      "gate": "G2",
+      "title": "Viewer interaction: pan/pinch, feature selection, source/unknown/assumption inspector",
+      "dependencies": ["G2-03"],
+      "acceptance_criteria": "Selection never mutates geometry; inspector clearly separates real source tags from unknown/assumed values.",
+      "status": "blocked",
+      "blocker": "Depends on G2-03."
+    },
+    {
+      "id": "G2-05",
+      "gate": "G2",
+      "title": "Attribution UI + simulation-vs-real labelling",
+      "dependencies": ["G2-03"],
+      "acceptance_criteria": "Attribution is legibly on-screen (not buried); simulated socio-economic figures are explicitly labelled as simulation.",
+      "status": "blocked",
+      "blocker": "Depends on G2-03 and ADR-0004's attribution contract."
+    },
+    {
+      "id": "G2-06",
+      "gate": "G2",
+      "title": "Thai UI + tablet layout using the same toolset as phone",
+      "dependencies": ["G2-04"],
+      "acceptance_criteria": "Thai text shaping/IME tested; tablet uses a pinned-inspector layout with identical tools to phone, not a separate toolset.",
+      "status": "blocked",
+      "blocker": "Depends on G2-04."
+    },
+    {
+      "id": "G2-07",
+      "gate": "G2",
+      "title": "Android/iOS development build evidence, recorded separately per platform and device type",
+      "dependencies": ["G2-01"],
+      "acceptance_criteria": "Editor/emulator/physical-device results are recorded separately; no claim of a build passing without a captured run.",
+      "status": "blocked",
+      "blocker": "No Android SDK/adb and no macOS/Xcode toolchain in this environment (see docs/environment.md). Needs a human with the relevant device/toolchain access."
+    },
+    {
+      "id": "W3-01",
+      "gate": "wave3",
+      "title": "Pure C# simulation core scaffold (no UnityEngine dependency), testable via dotnet test",
+      "dependencies": [],
+      "acceptance_criteria": "A .csproj compiles and its tests run with `dotnet test` using the container-local .NET SDK; the core never imports UnityEngine.",
+      "status": "pending",
+      "notes": "Out of scope for this G0 session per task instructions (wave 2/3 internals not started beyond G0 deliverables); dotnet-sdk-8.0 is confirmed available in this container (docs/evidence/g0-dotnet-experiment.log) so this task is dependency-ready whenever picked up."
+    }
+  ]
+}

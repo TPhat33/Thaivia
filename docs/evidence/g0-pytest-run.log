@@ -1,0 +1,30 @@
+$ ./.venv/bin/pytest -v
+--- output ---
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-8.4.2, pluggy-1.6.0 -- /home/user/Thaivia/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/user/Thaivia
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 17 items
+
+tests/test_cli_smoke.py::test_doctor_exits_zero_when_environment_is_healthy PASSED [  5%]
+tests/test_cli_smoke.py::test_stub_commands_exit_not_implemented_never_fake_success[acquire] PASSED [ 11%]
+tests/test_cli_smoke.py::test_stub_commands_exit_not_implemented_never_fake_success[build] PASSED [ 17%]
+tests/test_cli_smoke.py::test_stub_commands_exit_not_implemented_never_fake_success[audit] PASSED [ 23%]
+tests/test_cli_smoke.py::test_stub_commands_exit_not_implemented_never_fake_success[verify] PASSED [ 29%]
+tests/test_cli_smoke.py::test_no_command_is_usage_error PASSED           [ 35%]
+tests/test_cli_smoke.py::test_unknown_command_is_usage_error PASSED      [ 41%]
+tests/test_config_schemas.py::test_config_validates_against_schema[pilot-area.json-pilot-area.schema.json] PASSED [ 47%]
+tests/test_config_schemas.py::test_config_validates_against_schema[sources.json-sources.schema.json] PASSED [ 52%]
+tests/test_config_schemas.py::test_pilot_area_matches_spec_defaults PASSED [ 58%]
+tests/test_config_schemas.py::test_pilot_area_bbox_is_lon_lat_order_not_swapped PASSED [ 64%]
+tests/test_config_schemas.py::test_acquire_budget_requires_human_approval_below_country_scale PASSED [ 70%]
+tests/test_config_schemas.py::test_sources_lists_no_prohibited_source_as_allowed PASSED [ 76%]
+tests/test_synthetic_fixtures.py::test_synthetic_fixtures_directory_is_not_empty PASSED [ 82%]
+tests/test_synthetic_fixtures.py::test_every_json_fixture_declares_synthetic_true PASSED [ 88%]
+tests/test_synthetic_fixtures.py::test_every_xml_fixture_has_synthetic_header_comment PASSED [ 94%]
+tests/test_synthetic_fixtures.py::test_no_fixture_claims_real_osm_provenance PASSED [100%]
+
+============================== 17 passed in 1.85s ==============================
+--- exit code: 0 ---

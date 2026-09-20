@@ -1,0 +1,6 @@
+$ free -h
+--- output ---
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       535Mi        14Gi        12Mi       566Mi        15Gi
+Swap:             0B          0B          0B
+--- exit code: 0 ---

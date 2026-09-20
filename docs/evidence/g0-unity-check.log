@@ -1,0 +1,5 @@
+$ which unity-editor unityhub 2>&1; ls /opt/Unity* 2>&1; ls ~/Unity* 2>&1 || true
+--- output ---
+ls: cannot access '/opt/Unity*': No such file or directory
+ls: cannot access '/root/Unity*': No such file or directory
+--- exit code: 0 ---

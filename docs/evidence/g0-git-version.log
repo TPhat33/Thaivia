@@ -1,0 +1,4 @@
+$ git --version
+--- output ---
+git version 2.43.0
+--- exit code: 0 ---

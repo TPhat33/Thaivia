@@ -1,0 +1,5 @@
+$ df -h /
+--- output ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda        252G  7.1G   30G  20% /
+--- exit code: 0 ---

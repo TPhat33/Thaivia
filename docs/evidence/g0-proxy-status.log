@@ -1,0 +1,139 @@
+$ curl -sS "$HTTPS_PROXY/__agentproxy/status"
+--- output ---
+{
+  "enabled": true,
+  "port": 33043,
+  "caBundlePath": "/root/.ccr/ca-bundle.crt",
+  "hasSystemCa": true,
+  "bundleCoversEveryHost": true,
+  "noProxy": "localhost,127.0.0.1,::1,127.0.0.0/8,0.0.0.0/8,::,169.254.0.0/16,api.anthropic.com,api-staging.anthropic.com,api-pr-preview.anthropic.com,mcp-proxy.anthropic.com,mcp-proxy-staging.anthropic.com,registry.npmjs.org,jsr.io,npm.jsr.io,pypi.org,files.pythonhosted.org,index.crates.io,proxy.golang.org,host.docker.internal,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,.svc.cluster.local,*.svc.cluster.local",
+  "selective": false,
+  "standalone": false,
+  "toolScoped": false,
+  "installedProxyPreconfiguredClis": [],
+  "javaTrustStorePath": "/root/.ccr/java-truststore.p12",
+  "javaTrustStoreType": "PKCS12",
+  "readmePath": "/root/.ccr/README.md",
+  "gitConfigInjection": true,
+  "gitSshRewrite": true,
+  "recentRelayFailures": [
+    {
+      "ts": "2026-09-20T16:50:09.686Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "download.geofabrik.de:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:09.939Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "overpass-api.de:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:19.850Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "api.openstreetmap.org:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:20.069Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "planet.openstreetmap.org:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:20.343Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "overpass.kumi.systems:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:21.362Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "download.openstreetmap.fr:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:21.596Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "osm-internal.download.geofabrik.de:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:41.785Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "builds.dotnet.microsoft.com:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:41.826Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "dotnetcli.azureedge.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:43.554Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "download.unity3d.com:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:44.670Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:44.977Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:45.945Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:46.210Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:48.159Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:48.477Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:52.407Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    },
+    {
+      "ts": "2026-09-20T16:50:52.699Z",
+      "kind": "connect_rejected",
+      "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+      "host": "ppa.launchpadcontent.net:443"
+    }
+  ],
+  "downloadQueuedBytes": 0,
+  "downloadQueuedPeakBytes": 0,
+  "downloadReceivePauseSupported": true,
+  "downloadReceiveGateEnabled": true,
+  "uploadPausedClients": 0,
+  "uploadPauses": 0,
+  "uploadPauseSupported": true,
+  "uploadGateEnabled": true,
+  "bufferedAmountTrusted": true
+}
+--- exit code: 0 ---

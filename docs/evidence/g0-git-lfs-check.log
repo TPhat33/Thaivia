@@ -1,0 +1,8 @@
+$ git lfs version || echo "git-lfs: not found"
+--- output ---
+git: 'lfs' is not a git command. See 'git --help'.
+
+The most similar command is
+	log
+git-lfs: not found
+--- exit code: 0 ---

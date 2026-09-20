@@ -1,0 +1,8 @@
+$ which adb; echo "ANDROID_HOME=$ANDROID_HOME ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"; which sdkmanager
+--- output ---
+adb: not found
+ANDROID_HOME=<unset> ANDROID_SDK_ROOT=<unset>
+sdkmanager: not found
+This container is Linux x86_64; Xcode/macOS/iOS signing tooling is not applicable here (Apple toolchain requires macOS hardware, not installable on Linux).
+No physical or emulated Android/iOS test devices are attached to this container.
+--- exit code: 0 ---

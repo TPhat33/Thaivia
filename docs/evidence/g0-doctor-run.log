@@ -1,0 +1,21 @@
+$ ./.venv/bin/thaivia doctor
+--- output ---
+thaivia doctor -- environment report
+
+[AVAILABLE ] python_version                   : Python 3.11.15 at /home/user/Thaivia/.venv/bin/python (plan's proposed baseline was 3.12; see ADR-0001)
+[AVAILABLE ] dependency:osmium                : osmium 4.3.1 imports OK
+[AVAILABLE ] dependency:pyproj                : pyproj 3.7.2 imports OK
+[AVAILABLE ] dependency:shapely               : shapely 2.1.2 imports OK
+[AVAILABLE ] dependency:jsonschema            : jsonschema 4.26.0 imports OK
+[AVAILABLE ] config:pilot-area.json           : pilot-area.json present and schema-valid
+[AVAILABLE ] config:sources.json              : sources.json present and schema-valid
+[MISSING   ] source_cache                     : /home/user/Thaivia/data/cache does not exist yet; no OSM source has been acquired (expected in G0)
+[BLOCKED   ] source:geofabrik-thailand-pbf    : https://download.geofabrik.de/asia/thailand-latest.osm.pbf -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+[BLOCKED   ] source:overpass-api-de           : https://overpass-api.de/api/interpreter -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+[BLOCKED   ] source:overpass-kumi-systems     : https://overpass.kumi.systems/api/interpreter -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+[BLOCKED   ] source:openstreetmap-api         : https://api.openstreetmap.org/ -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+[BLOCKED   ] source:geofabrik-osm-internal    : https://osm-internal.download.geofabrik.de/ -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+[BLOCKED   ] source:download-openstreetmap-fr : https://download.openstreetmap.fr/ -> tunnel/connect denied: <urlopen error Tunnel connection failed: 403 Forbidden> (see docs/environment.md)
+
+RESULT: no hard problems found
+--- exit code: 0 ---
