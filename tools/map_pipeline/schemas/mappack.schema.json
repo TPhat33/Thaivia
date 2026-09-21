@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thaivia.local/schemas/mappack.schema.json",
+  "title": "MapPack",
+  "description": "Immutable, versioned, byte-deterministic output of `thaivia build`. `content_hash` is the SHA-256 of the canonical serialization of `payload` only; `volatile` fields never affect it.",
+  "type": "object",
+  "required": ["volatile", "content_hash", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "volatile": {
+      "type": "object",
+      "required": ["baked_at", "source_retrieved_at"],
+      "additionalProperties": true,
+      "properties": {
+        "baked_at": { "type": "string" },
+        "source_retrieved_at": { "type": "string" }
+      }
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "manifest",
+        "provenance",
+        "geography_base",
+        "road_graph",
+        "quality_report",
+        "simulation_initialization"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "manifest": {
+          "type": "object",
+          "required": [
+            "map_id",
+            "schema_version",
+            "importer_version",
+            "settings_hash",
+            "settings",
+            "driving_side",
+            "crs_code",
+            "crs_validation_warnings",
+            "local_origin",
+            "unity_axis_convention"
+          ],
+          "properties": {
+            "map_id": { "type": "string" },
+            "schema_version": { "type": "string" },
+            "importer_version": { "type": "string" },
+            "settings_hash": { "type": "string" },
+            "settings": { "type": "object" },
+            "driving_side": { "type": "string", "enum": ["left", "right"] },
+            "crs_code": { "type": "string" },
+            "crs_validation_warnings": { "type": "array", "items": { "type": "string" } },
+            "local_origin": {
+              "type": "object",
+              "required": ["crs_code", "origin_easting_m", "origin_northing_m"],
+              "properties": {
+                "crs_code": { "type": "string" },
+                "origin_easting_m": { "type": "number" },
+                "origin_northing_m": { "type": "number" }
+              }
+            },
+            "unity_axis_convention": { "type": "string" }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "required": [
+            "source_kind",
+            "source_location",
+            "sha256",
+            "size_bytes",
+            "source_snapshot_timestamp",
+            "source_snapshot_unknown_reason",
+            "settings_hash",
+            "synthetic",
+            "attribution"
+          ],
+          "properties": {
+            "source_kind": { "type": "string", "enum": ["url", "local_file"] },
+            "source_location": { "type": "string" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "size_bytes": { "type": "integer", "minimum": 0 },
+            "source_snapshot_timestamp": { "type": ["string", "null"] },
+            "source_snapshot_unknown_reason": { "type": ["string", "null"] },
+            "settings_hash": { "type": "string" },
+            "synthetic": { "type": "boolean" },
+            "synthetic_notice": { "type": ["string", "null"] },
+            "attribution": {
+              "type": "object",
+              "required": ["notice", "odbl_license_url", "copyright_url"],
+              "properties": {
+                "notice": { "type": "string", "minLength": 1 },
+                "odbl_license_url": { "type": "string" },
+                "copyright_url": { "type": "string" }
+              }
+            }
+          }
+        },
+        "geography_base": {
+          "type": "object",
+          "required": ["buildings", "building_parts", "water_polygons", "waterways", "barriers"],
+          "properties": {
+            "buildings": { "type": "array" },
+            "building_parts": { "type": "array" },
+            "water_polygons": { "type": "array" },
+            "waterways": { "type": "array" },
+            "barriers": { "type": "array" }
+          }
+        },
+        "road_graph": {
+          "type": "object",
+          "required": ["nodes", "edges", "junction_node_ids", "turn_restrictions", "gateways", "boundary"],
+          "properties": {
+            "nodes": { "type": "array" },
+            "edges": { "type": "array" },
+            "junction_node_ids": { "type": "array" },
+            "turn_restrictions": { "type": "array" },
+            "gateways": { "type": "array" },
+            "boundary": { "type": "object" }
+          }
+        },
+        "quality_report": {
+          "type": "object",
+          "required": [
+            "unknown_counts",
+            "dropped",
+            "quarantined",
+            "incomplete_relations",
+            "unsupported_restrictions",
+            "topology_conflicts",
+            "duplicate_associations",
+            "retained_counts",
+            "rejected_counts",
+            "roundtrip_error_m"
+          ]
+        },
+        "simulation_initialization": {
+          "type": "object",
+          "required": ["schema_version", "note", "seed"],
+          "properties": {
+            "schema_version": { "type": "string" },
+            "note": { "type": "string" },
+            "seed": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

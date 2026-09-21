@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC FIXTURE: synthetic=true. Hand-authored for unit tests only.
+     NOT real OSM data, retrieved from no live source, and does not
+     represent any real place in Thailand. Exercises buffered-crop
+     boundary classification and gateway synthesis: Road D stays fully
+     inside a test AOI, Road E leaves the AOI + buffer entirely and must
+     produce a gateway, not a silent dead end. -->
+<osm version="0.6" generator="thaivia-test-fixture-synthetic">
+  <node id="-601" lat="13.0005000" lon="100.0005000" />
+  <node id="-602" lat="13.0015000" lon="100.0015000" />
+  <node id="-603" lat="13.0010000" lon="100.0010000" />
+  <node id="-604" lat="13.0010000" lon="100.0500000" />
+
+  <way id="-701">
+    <nd ref="-601" />
+    <nd ref="-602" />
+    <tag k="highway" v="residential" />
+    <tag k="name" v="Synthetic Road D (fully interior)" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <way id="-702">
+    <nd ref="-603" />
+    <nd ref="-604" />
+    <tag k="highway" v="primary" />
+    <tag k="name" v="Synthetic Road E (leaves the AOI)" />
+    <tag k="synthetic" v="true" />
+  </way>
+</osm>

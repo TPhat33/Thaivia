@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC FIXTURE: synthetic=true. Hand-authored for unit tests only.
+     NOT real OSM data, retrieved from no live source, and does not
+     represent any real place in Thailand. Deliberately hostile input:
+     a dangling node reference, a self-intersecting (bowtie) ring, a
+     zero-length way, and a way with duplicate consecutive node ids.
+     Every case here must produce a quality-report entry, never a crash. -->
+<osm version="0.6" generator="thaivia-test-fixture-synthetic">
+  <node id="-801" lat="13.0200000" lon="100.0200000" />
+  <node id="-802" lat="13.0200000" lon="100.0210000" />
+  <node id="-803" lat="13.0210000" lon="100.0210000" />
+  <node id="-804" lat="13.0210000" lon="100.0200000" />
+
+  <!-- Self-intersecting (bowtie) ring: -801 -> -803 -> -802 -> -804 -> -801 -->
+  <way id="-901">
+    <nd ref="-801" />
+    <nd ref="-803" />
+    <nd ref="-802" />
+    <nd ref="-804" />
+    <nd ref="-801" />
+    <tag k="building" v="yes" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <!-- Dangling reference: node -999999 does not exist anywhere in this file. -->
+  <way id="-902">
+    <nd ref="-801" />
+    <nd ref="-802" />
+    <nd ref="-999999" />
+    <tag k="highway" v="residential" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <!-- Zero-length way: every node ref is the same node id. -->
+  <way id="-903">
+    <nd ref="-801" />
+    <nd ref="-801" />
+    <tag k="building" v="yes" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <!-- Duplicate consecutive node ids within an otherwise-normal way. -->
+  <way id="-904">
+    <nd ref="-801" />
+    <nd ref="-801" />
+    <nd ref="-802" />
+    <nd ref="-803" />
+    <tag k="building" v="yes" />
+    <tag k="synthetic" v="true" />
+  </way>
+</osm>

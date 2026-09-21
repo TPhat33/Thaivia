@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC FIXTURE: synthetic=true. Hand-authored for unit tests only.
+     NOT real OSM data, retrieved from no live source, and does not
+     represent any real place in Thailand. Exercises: oneway=-1, a
+     genuine shared-node junction, a bridge crossing a road in plan view
+     at a different `layer` with NO shared node (must NOT become a
+     junction), junction=roundabout, and turn restrictions (one
+     supported via-node, one unsupported via-way). -->
+<osm version="0.6" generator="thaivia-test-fixture-synthetic">
+  <node id="-301" lat="13.0100000" lon="100.0100000" />
+  <node id="-302" lat="13.0100000" lon="100.0110000" />
+  <node id="-303" lat="13.0100000" lon="100.0120000" />
+  <node id="-304" lat="13.0090000" lon="100.0110000" />
+  <node id="-305" lat="13.0105000" lon="100.0105000" />
+  <node id="-306" lat="13.0095000" lon="100.0115000" />
+  <node id="-307" lat="13.0200000" lon="100.0200000" />
+  <node id="-308" lat="13.0200000" lon="100.0202000" />
+  <node id="-309" lat="13.0202000" lon="100.0201000" />
+
+  <way id="-401">
+    <nd ref="-301" />
+    <nd ref="-302" />
+    <nd ref="-303" />
+    <tag k="highway" v="residential" />
+    <tag k="oneway" v="-1" />
+    <tag k="name" v="Synthetic Road A" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <way id="-402">
+    <nd ref="-302" />
+    <nd ref="-304" />
+    <tag k="highway" v="residential" />
+    <tag k="name" v="Synthetic Road B" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <!-- Crosses Road A in plan view at (13.0100, 100.0110), the SAME
+       location as node -302, but uses its OWN distinct node ids, so it
+       must never register as a junction with Road A/B. -->
+  <way id="-403">
+    <nd ref="-305" />
+    <nd ref="-306" />
+    <tag k="highway" v="secondary" />
+    <tag k="bridge" v="yes" />
+    <tag k="layer" v="1" />
+    <tag k="name" v="Synthetic Bridge C" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <way id="-404">
+    <nd ref="-307" />
+    <nd ref="-308" />
+    <nd ref="-309" />
+    <nd ref="-307" />
+    <tag k="highway" v="residential" />
+    <tag k="junction" v="roundabout" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <relation id="-501">
+    <member type="way" ref="-401" role="from" />
+    <member type="node" ref="-302" role="via" />
+    <member type="way" ref="-402" role="to" />
+    <tag k="type" v="restriction" />
+    <tag k="restriction" v="no_left_turn" />
+    <tag k="synthetic" v="true" />
+  </relation>
+
+  <relation id="-502">
+    <member type="way" ref="-401" role="from" />
+    <member type="way" ref="-403" role="via" />
+    <member type="way" ref="-402" role="to" />
+    <tag k="type" v="restriction" />
+    <tag k="restriction" v="no_entry" />
+    <tag k="synthetic" v="true" />
+  </relation>
+</osm>

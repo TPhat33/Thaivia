@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC FIXTURE: synthetic=true. Hand-authored for unit tests only.
+     NOT real OSM data, retrieved from no live source, and does not
+     represent any real place in Thailand. Exercises a multi-part
+     multipolygon building relation (two disjoint outer rings, each with
+     its own hole) plus a standalone building:part way, to check that
+     neither becomes a duplicated building. -->
+<osm version="0.6" generator="thaivia-test-fixture-synthetic">
+  <node id="-1001" lat="13.0300000" lon="100.0300000" />
+  <node id="-1002" lat="13.0300000" lon="100.0310000" />
+  <node id="-1003" lat="13.0310000" lon="100.0310000" />
+  <node id="-1004" lat="13.0310000" lon="100.0300000" />
+
+  <node id="-1005" lat="13.0303000" lon="100.0303000" />
+  <node id="-1006" lat="13.0303000" lon="100.0307000" />
+  <node id="-1007" lat="13.0307000" lon="100.0307000" />
+  <node id="-1008" lat="13.0307000" lon="100.0303000" />
+
+  <node id="-1009" lat="13.0400000" lon="100.0400000" />
+  <node id="-1010" lat="13.0400000" lon="100.0410000" />
+  <node id="-1011" lat="13.0410000" lon="100.0410000" />
+  <node id="-1012" lat="13.0410000" lon="100.0400000" />
+
+  <node id="-1013" lat="13.0403000" lon="100.0403000" />
+  <node id="-1014" lat="13.0403000" lon="100.0407000" />
+  <node id="-1015" lat="13.0407000" lon="100.0407000" />
+  <node id="-1016" lat="13.0407000" lon="100.0403000" />
+
+  <node id="-1017" lat="13.0301000" lon="100.0301000" />
+  <node id="-1018" lat="13.0301000" lon="100.0302000" />
+  <node id="-1019" lat="13.0302000" lon="100.0302000" />
+  <node id="-1020" lat="13.0302000" lon="100.0301000" />
+
+  <way id="-1101">
+    <nd ref="-1001" /><nd ref="-1002" /><nd ref="-1003" /><nd ref="-1004" /><nd ref="-1001" />
+    <tag k="synthetic" v="true" />
+  </way>
+  <way id="-1102">
+    <nd ref="-1005" /><nd ref="-1006" /><nd ref="-1007" /><nd ref="-1008" /><nd ref="-1005" />
+    <tag k="synthetic" v="true" />
+  </way>
+  <way id="-1103">
+    <nd ref="-1009" /><nd ref="-1010" /><nd ref="-1011" /><nd ref="-1012" /><nd ref="-1009" />
+    <tag k="synthetic" v="true" />
+  </way>
+  <way id="-1104">
+    <nd ref="-1013" /><nd ref="-1014" /><nd ref="-1015" /><nd ref="-1016" /><nd ref="-1013" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <!-- Standalone building:part, deliberately NOT a member of the
+       relation below, sitting inside outer ring 1's footprint. Must be
+       imported as its own "building_part" feature, never duplicated as
+       a second "building". -->
+  <way id="-1105">
+    <nd ref="-1017" /><nd ref="-1018" /><nd ref="-1019" /><nd ref="-1020" /><nd ref="-1017" />
+    <tag k="building:part" v="yes" />
+    <tag k="building:levels" v="2" />
+    <tag k="synthetic" v="true" />
+  </way>
+
+  <relation id="-1201">
+    <member type="way" ref="-1101" role="outer" />
+    <member type="way" ref="-1102" role="inner" />
+    <member type="way" ref="-1103" role="outer" />
+    <member type="way" ref="-1104" role="inner" />
+    <tag k="type" v="multipolygon" />
+    <tag k="building" v="yes" />
+    <tag k="synthetic" v="true" />
+  </relation>
+</osm>
