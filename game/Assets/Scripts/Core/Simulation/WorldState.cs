@@ -11,10 +11,12 @@ using Thaivia.Core.Simulation.Archetypes;
 using Thaivia.Core.Simulation.Buildings;
 using Thaivia.Core.Simulation.Cohorts;
 using Thaivia.Core.Simulation.Economy;
+using Thaivia.Core.Simulation.Mobility.Demand;
 using Thaivia.Core.Simulation.Mobility.Gateways;
 using Thaivia.Core.Simulation.Mobility.Incidents;
 using Thaivia.Core.Simulation.Mobility.Queues;
 using Thaivia.Core.Simulation.Mobility.RoadWorks;
+using Thaivia.Core.Simulation.Mobility.Routing;
 using Thaivia.Core.Simulation.Mobility.Signals;
 using Thaivia.Core.Simulation.Mobility.Transit;
 using Thaivia.Core.Simulation.Noise;
@@ -62,6 +64,17 @@ public sealed class WorldState
     private readonly List<SignalInstance> _signals = new();
     private readonly List<IncidentSite> _incidentSites = new();
 
+    // --- Precomputed, read-only topology indexes over RoadGraph (never
+    // RoadGraph itself -- these are just lookup caches, rebuilt once per
+    // WorldState instance since RoadGraph never mutates). Exist so
+    // SimulateTick's per-tick work (signal-approach arrival splitting,
+    // incident-site congestion sampling) does not re-scan every edge on
+    // every tick -- see ADR-0023 and the g5 benchmark harness, where this
+    // matters for the per-tick time budget (plan §15).
+    private readonly Dictionary<long, RoadEdge> _edgesByWayId;
+    private readonly Dictionary<long, RoadGraphNode> _nodesById;
+    private readonly Dictionary<long, IReadOnlyList<long>> _waysAtNode;
+
     /// <summary>Normal construction: seeds cohorts/buildings fresh from
     /// GeographyBase + ScenarioConfig (SimulationInitialization-layer
     /// data; see ScenarioConfig's doc comment for why the config, not
@@ -81,6 +94,7 @@ public sealed class WorldState
 
         _roadNodeIds = roadGraph.Nodes.Select(n => n.NodeId).ToHashSet();
         (_buildingStates, _cohorts) = SeedFromGeography(geographyBase, roadGraph, scenario, RandomStreams);
+        (_edgesByWayId, _nodesById, _waysAtNode) = BuildTopologyIndexes(roadGraph);
 
         LinkQueues = new LinkQueueSimulator();
         _gatewayFlows = BuildGatewayFlowsFromRoadGraph(roadGraph);
@@ -109,6 +123,7 @@ public sealed class WorldState
         Revision = save.Revision;
 
         _roadNodeIds = roadGraph.Nodes.Select(n => n.NodeId).ToHashSet();
+        (_edgesByWayId, _nodesById, _waysAtNode) = BuildTopologyIndexes(roadGraph);
 
         _buildingStates = save.Buildings.ToDictionary(
             b => b.SourceId,
@@ -203,9 +218,14 @@ public sealed class WorldState
     public IReadOnlySet<long> RoadNodeIds => _roadNodeIds;
 
     // --- G4 mobility state: exposed for direct mutation, same as
-    // Clock/RandomStreams (none of these carry a budget/transactional
-    // concern the way MoneyLedger's Reserve/Charge does, so there is no
-    // need to funnel them through PlanningEngine).
+    // Clock/RandomStreams. Bus routes/signals/incident sites carry no
+    // budget/transactional concern, so there is no need to funnel them
+    // through PlanningEngine. Road works is the ONE exception as of G4's
+    // tick-loop integration wave: it now has a real cost (construction),
+    // so the player-facing path is PlanningEngine.CommitRoadWorks (reserve
+    // -> pay milestones -> cancel truncates the zone). AddRoadWorksZone
+    // below still exists as a direct-mutation escape hatch for tests/
+    // manual setup that intentionally bypass the ledger -- see ADR-0023.
     public LinkQueueSimulator LinkQueues { get; }
     public IReadOnlyDictionary<long, GatewayFlow> GatewayFlows => _gatewayFlows;
     public IReadOnlyList<RoadWorksZone> RoadWorksZones => _roadWorksZones;
@@ -257,21 +277,395 @@ public sealed class WorldState
 
     internal void RegisterVacatedLot(VacatedLot lot) => _vacatedLots.Add(lot);
 
+    /// <summary>Used only by PlanningEngine.CancelProject for a
+    /// <see cref="Planning.ProjectKind.RoadWorks"/> project: truncates the
+    /// matching zone's construction window to end at
+    /// <paramref name="asOfTick"/> so no FUTURE tick is affected, without
+    /// touching whatever degradation already happened at earlier ticks
+    /// (that backlog is real history, see PlanningEngine.CancelProject's
+    /// doc comment). A no-op if the zone already ended naturally before
+    /// <paramref name="asOfTick"/>, or if no zone with that project id
+    /// exists.</summary>
+    internal void TruncateActiveRoadWorksZone(string projectId, long asOfTick)
+    {
+        var index = _roadWorksZones.FindIndex(z => z.ProjectId == projectId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var zone = _roadWorksZones[index];
+        var naturalEndTick = zone.StartTick + zone.DurationTicks;
+        if (asOfTick >= naturalEndTick)
+        {
+            return; // already ended (or ends exactly now) on its own -- nothing to truncate.
+        }
+
+        var truncatedDuration = Math.Max(0, asOfTick - zone.StartTick);
+        _roadWorksZones[index] = new RoadWorksZone(zone.Id, zone.WayId, zone.StartTick, truncatedDuration, zone.CapacityMultiplierDuringConstruction, zone.ProjectId);
+    }
+
     /// <summary>Advances the logical clock by exactly
     /// <paramref name="tickCount"/> ticks. No wall-clock parameter exists
     /// anywhere in this call chain (see SimClock's doc comment).</summary>
     public void Tick(long tickCount) => Clock.AdvanceTicks(tickCount);
 
-    /// <summary>One fixed-step simulation tick: advances the clock by one
-    /// tick and draws one value from the Traffic stream. G3 does not yet
-    /// drive real per-tick traffic simulation from this draw (full
-    /// mobility/queues is G4 scope, plan §16) -- it exists here purely so
-    /// tick advancement is entangled with RNG stream position, which is
-    /// what the save/load round-trip test exercises.</summary>
+    /// <summary>
+    /// One fixed-step simulation tick, running the real G4 per-tick
+    /// sequence (see ADR-0023 for the full rationale behind this exact
+    /// order; this doc comment states the order itself, since the order is
+    /// observable in results and therefore part of this method's
+    /// contract):
+    ///
+    ///   1. Advance the clock by one tick; derive hour-of-day from it.
+    ///   2. Build this tick's vehicle routing graph (base road_graph +
+    ///      every committed PlannedRoadSegment so far -- a committed new
+    ///      road takes effect on the very next tick).
+    ///   3. Generate OD demand batches from cohort population x this
+    ///      hour's Residential activity clock (TripDemandGenerator).
+    ///   4. All-or-nothing network assignment of those batches onto ways
+    ///      (NetworkDemandAssignment).
+    ///   5. Step every way's LinkQueueSimulator with this tick's arrivals
+    ///      and its RoadWorksZone-adjusted capacity.
+    ///   6. Step every registered SignalInstance, splitting this tick's
+    ///      per-way arrivals at its node into two approaches by real
+    ///      incident-way topology (never a fabricated 50/50 split).
+    ///   7. Step every registered BusRoute: ridership demand from cohorts
+    ///      within real walking distance of a stop, capped by the route's
+    ///      real fleet throughput (BusRouteScheduler/BusRidership).
+    ///   8. Generate this tick's gateway boundary demand from each
+    ///      MapPack Gateway's own simulation_assumption in/out veh/hour
+    ///      fields, then advance every GatewayFlow one tick.
+    ///   9. Evaluate every registered IncidentSite: risk from this tick's
+    ///      real (hour, noise, congestion) at the site's road node, fed
+    ///      into IncidentEngine.Step (RandomStreamName.Incidents is drawn
+    ///      from ONLY at the instant an incident activates, for severity
+    ///      -- see IncidentEngine's doc comment; triggering itself is
+    ///      condition-driven, not RNG-driven).
+    ///
+    /// Step 10 ("cohort needs/noise update") is deliberately NOT a stored,
+    /// per-tick-pushed cache: <see cref="ComputeCohortNeeds"/> and
+    /// <see cref="ComputeNoiseIndexAt"/> are pure functions of state this
+    /// method already advances (cohorts/buildings/incidents/hour), so a
+    /// caller querying them after SimulateTick always sees this tick's
+    /// live conditions -- including <see cref="ComputeSafetyScore"/>,
+    /// which now reads real Active incident sites instead of G3's flat
+    /// baseline. Storing a redundant push-cache would only add save/hash
+    /// surface for a value fully derivable from what is already
+    /// saved/hashed.
+    /// </summary>
     public void SimulateTick()
     {
         Clock.AdvanceTicks(1);
-        RandomStreams.Stream(RandomStreamName.Traffic).NextUInt64();
+        var hourOfDay = ComputeHourOfDay();
+        var tick = Clock.CurrentTick;
+
+        var vehicleGraph = new MobilityGraph(RoadGraph, TravelMode.Vehicle, _plannedRoadSegments);
+
+        var demandBatches = TripDemandGenerator.GenerateCommuteBatches(_cohorts.Values, _buildingStates, vehicleGraph, hourOfDay);
+        var arrivalsByWay = NetworkDemandAssignment.AssignToWays(vehicleGraph, demandBatches);
+
+        StepLinkQueues(arrivalsByWay, tick);
+        StepSignals(arrivalsByWay);
+        StepBusRoutes(vehicleGraph);
+        StepGateways();
+        StepIncidents(hourOfDay, tick);
+    }
+
+    private int ComputeHourOfDay()
+    {
+        var secondsElapsed = Clock.CurrentTick / SimTime.TickConfig.TicksPerSecond;
+        var hour = (long)(secondsElapsed / 3600.0) % 24;
+        return (int)hour;
+    }
+
+    private void StepLinkQueues(IReadOnlyDictionary<long, long> arrivalsByWay, long tick)
+    {
+        // Every way that either has arrivals this tick OR still carries a
+        // backlog from a prior tick must be stepped -- a way with neither
+        // has nothing to advance (and stepping it would be a no-op anyway,
+        // but skipping it keeps this O(active ways), not O(all ways),
+        // every tick).
+        var waysToStep = new HashSet<long>(arrivalsByWay.Keys);
+        foreach (var key in LinkQueues.QueueLengths.Keys)
+        {
+            waysToStep.Add(key.WayId);
+        }
+
+        foreach (var wayId in waysToStep.OrderBy(w => w))
+        {
+            if (!_edgesByWayId.TryGetValue(wayId, out var edge))
+            {
+                continue; // a synthetic (player-connector) id never reaches here -- NetworkDemandAssignment already filters those out.
+            }
+
+            var capacity = LinkCapacity.EffectiveCapacityVehPerTick(edge, tick, _roadWorksZones);
+            var arrivals = arrivalsByWay.TryGetValue(wayId, out var a) ? a : 0;
+            LinkQueues.Step(new LinkKey(wayId, Forward: true), arrivals, capacity);
+        }
+    }
+
+    private void StepSignals(IReadOnlyDictionary<long, long> arrivalsByWay)
+    {
+        foreach (var signal in _signals.OrderBy(s => s.Id, StringComparer.Ordinal))
+        {
+            var (waysA, waysB) = SplitSignalApproachWays(signal.NodeId);
+            var arrivalsA = ClampToInt(waysA.Sum(w => arrivalsByWay.TryGetValue(w, out var v) ? v : 0));
+            var arrivalsB = ClampToInt(waysB.Sum(w => arrivalsByWay.TryGetValue(w, out var v) ? v : 0));
+            signal.Step(arrivalsA, arrivalsB);
+        }
+    }
+
+    /// <summary>Distance a bus rider is assumed willing to walk to reach a
+    /// stop -- a documented simulation_assumption (no measured catchment
+    /// data exists), shared by every route.</summary>
+    public const double BusWalkingReachMeters = 400.0;
+
+    private void StepBusRoutes(MobilityGraph vehicleGraph)
+    {
+        if (_busRoutes.Count == 0)
+        {
+            return; // skip building a walk graph nobody needs this tick.
+        }
+
+        var walkGraph = new MobilityGraph(RoadGraph, TravelMode.Walk, _plannedRoadSegments);
+
+        foreach (var route in _busRoutes.OrderBy(r => r.Id, StringComparer.Ordinal))
+        {
+            var roundTripTicks = BusRouteScheduler.RoundTripTicks(route, vehicleGraph);
+            var throughput = BusRouteScheduler.ThroughputPerTick(route, roundTripTicks);
+
+            bool IsWithinWalkingReach(HouseholdCohort cohort)
+            {
+                if (!_buildingStates.TryGetValue(cohort.HomeBuildingSourceId, out var home))
+                {
+                    return false;
+                }
+
+                foreach (var stopNodeId in route.StopNodeIds)
+                {
+                    var distance = walkGraph.ShortestDistanceMeters(home.NearestRoadNodeId, stopNodeId);
+                    if (distance is { } d && d <= BusWalkingReachMeters)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            var demand = BusRidership.ComputeEligibleDemandThisTick(_cohorts.Values, IsWithinWalkingReach);
+            var (boarded, _) = BusRidership.AssignRidership(demand, throughput);
+            RecordBusRidership(route.Id, boarded);
+        }
+    }
+
+    private void StepGateways()
+    {
+        foreach (var gateway in RoadGraph.Gateways)
+        {
+            if (!_gatewayFlows.TryGetValue(gateway.NodeId, out var flow))
+            {
+                continue;
+            }
+
+            var outboundPerTick = VehPerHourToPerTick(gateway.OutboundDemandVehPerHour);
+            var inboundPerTick = VehPerHourToPerTick(gateway.InboundDemandVehPerHour);
+            if (outboundPerTick > 0)
+            {
+                flow.GenerateOutboundDemand(outboundPerTick);
+            }
+
+            if (inboundPerTick > 0)
+            {
+                flow.GenerateInboundDemand(inboundPerTick);
+            }
+        }
+
+        foreach (var flow in _gatewayFlows.Values)
+        {
+            flow.Step();
+        }
+    }
+
+    private void StepIncidents(int hourOfDay, long tick)
+    {
+        foreach (var site in _incidentSites.OrderBy(i => i.SiteId, StringComparer.Ordinal).ThenBy(i => i.Strand.ToString(), StringComparer.Ordinal))
+        {
+            if (!TryResolveIncidentSiteNodeId(site.SiteId, out var nodeId))
+            {
+                continue; // this site's SiteId is not a live road-node id -- see TryResolveIncidentSiteNodeId's doc comment.
+            }
+
+            var node = _nodesById[nodeId];
+            var congestion = ComputeCongestionRatioAtNode(nodeId, tick);
+            var noise = ComputeNoiseIndexAtPoint(node.LocalX, node.LocalZ, hourOfDay);
+            var thresholds = IncidentThresholdCatalog.For(site.Strand);
+
+            var risk = site.Strand switch
+            {
+                IncidentStrand.NightDisorder => IncidentConditions.NightDisorderRisk(hourOfDay, noise, congestion),
+                IncidentStrand.StreetRacing => IncidentConditions.StreetRacingRisk(hourOfDay, congestion),
+                _ => throw new InvalidOperationException($"Unhandled incident strand {site.Strand}."),
+            };
+
+            IncidentEngine.Step(site, risk, thresholds, RandomStreams.Stream(RandomStreamName.Incidents));
+        }
+    }
+
+    /// <summary>Convention this WorldState imposes on top of
+    /// <see cref="IncidentSite"/>'s deliberately caller-defined SiteId (see
+    /// its doc comment: the type itself "never stores or reasons about
+    /// WHAT that location is"): for LIVE per-tick evaluation, SiteId must
+    /// parse as a road_graph node id that actually exists in this world. A
+    /// site whose id does not resolve is simply skipped this tick (never
+    /// evaluated with a fabricated location) -- it still exists and can be
+    /// stepped later once/if it resolves (e.g. after a save/restore
+    /// against a different map would NOT resolve; that combination is out
+    /// of scope here since map id is checked before restore, see
+    /// SaveGameStore).</summary>
+    private bool TryResolveIncidentSiteNodeId(string siteId, out long nodeId) =>
+        long.TryParse(siteId, out nodeId) && _nodesById.ContainsKey(nodeId);
+
+    /// <summary>Live safety need (spec §11 "safety... driven by the
+    /// activity clock" -- extended in G4 to be driven by real incidents):
+    /// 100 minus a penalty from every currently-Active
+    /// <see cref="IncidentSite"/> reachable (by network distance) from
+    /// <paramref name="homeRoadNodeId"/>, decayed linearly to 0 by
+    /// <see cref="SafetyInfluenceRadiusMeters"/> and scaled by that
+    /// incident's severity. Only the WORST (closest x most severe)
+    /// concurrent incident counts -- impacts do not stack additively,
+    /// which would let many small, distant incidents implausibly zero out
+    /// safety. Falls back to <see cref="CohortNeedsCalculator.BaselineSafety"/>
+    /// when this world has no incident sites registered at all (preserves
+    /// G3 behaviour for scenarios that never seed any).</summary>
+    public int ComputeSafetyScore(long homeRoadNodeId)
+    {
+        if (_incidentSites.Count == 0)
+        {
+            return CohortNeedsCalculator.BaselineSafety;
+        }
+
+        var graph = BuildAccessibilityGraph();
+        double worstImpact = 0;
+        foreach (var site in _incidentSites)
+        {
+            if (site.Phase != IncidentPhase.Active)
+            {
+                continue;
+            }
+
+            if (!TryResolveIncidentSiteNodeId(site.SiteId, out var nodeId))
+            {
+                continue;
+            }
+
+            var distance = graph.ShortestDistanceMeters(homeRoadNodeId, nodeId);
+            if (distance is not { } d)
+            {
+                continue;
+            }
+
+            var proximity = Math.Clamp(1.0 - d / SafetyInfluenceRadiusMeters, 0, 1);
+            var impact = proximity * (site.LastSeverity / 100.0);
+            worstImpact = Math.Max(worstImpact, impact);
+        }
+
+        return Math.Clamp(100 - (int)Math.Round(worstImpact * 100), 0, 100);
+    }
+
+    /// <summary>Network-distance radius (metres) within which a currently
+    /// Active incident can affect a home's safety need at all -- a
+    /// documented simulation_assumption (no measured "how far does a
+    /// disturbance's perceived risk carry" data exists for any AOI).</summary>
+    public const double SafetyInfluenceRadiusMeters = 500.0;
+
+    private double ComputeCongestionRatioAtNode(long nodeId, long tick)
+    {
+        if (!_waysAtNode.TryGetValue(nodeId, out var wayIds) || wayIds.Count == 0)
+        {
+            return 0.0;
+        }
+
+        double total = 0;
+        var count = 0;
+        foreach (var wayId in wayIds)
+        {
+            if (!_edgesByWayId.TryGetValue(wayId, out var edge))
+            {
+                continue;
+            }
+
+            var capacity = LinkCapacity.EffectiveCapacityVehPerTick(edge, tick, _roadWorksZones);
+            var queue = LinkQueues.QueueLengthOf(new LinkKey(wayId, Forward: true));
+            var ratio = capacity <= 0
+                ? (queue > 0 ? 1.0 : 0.0)
+                : Math.Clamp((double)queue / capacity, 0, 1);
+
+            total += ratio;
+            count++;
+        }
+
+        return count == 0 ? 0.0 : total / count;
+    }
+
+    /// <summary>Splits the distinct way ids incident to
+    /// <paramref name="nodeId"/> into two groups by alternating sorted way
+    /// id (way #0, #2, #4... -> A; #1, #3, #5... -> B). This is a
+    /// deterministic function of REAL road_graph topology at that node --
+    /// never an arbitrary/fabricated 50/50 split of traffic that did not
+    /// actually happen -- so a signal's two approaches receive exactly the
+    /// arrivals this tick's real network assignment put on the ways in
+    /// each group. A node with only one incident way puts everything in
+    /// group A and leaves group B empty, which is a faithful answer for a
+    /// dead-end/two-way-single-carriageway node, not a bug.</summary>
+    private (IReadOnlyList<long> WaysA, IReadOnlyList<long> WaysB) SplitSignalApproachWays(long nodeId)
+    {
+        if (!_waysAtNode.TryGetValue(nodeId, out var wayIds) || wayIds.Count == 0)
+        {
+            return (Array.Empty<long>(), Array.Empty<long>());
+        }
+
+        var a = new List<long>();
+        var b = new List<long>();
+        for (var i = 0; i < wayIds.Count; i++)
+        {
+            (i % 2 == 0 ? a : b).Add(wayIds[i]);
+        }
+
+        return (a, b);
+    }
+
+    private static int ClampToInt(long value) => (int)Math.Clamp(value, 0, int.MaxValue);
+
+    private static (Dictionary<long, RoadEdge> EdgesByWayId, Dictionary<long, RoadGraphNode> NodesById, Dictionary<long, IReadOnlyList<long>> WaysAtNode) BuildTopologyIndexes(RoadGraph roadGraph)
+    {
+        var edgesByWayId = new Dictionary<long, RoadEdge>();
+        var nodesById = new Dictionary<long, RoadGraphNode>();
+        var waysAtNodeBuilder = new Dictionary<long, HashSet<long>>();
+
+        foreach (var node in roadGraph.Nodes)
+        {
+            nodesById[node.NodeId] = node;
+        }
+
+        foreach (var edge in roadGraph.Edges)
+        {
+            edgesByWayId[edge.WayId] = edge;
+            foreach (var nodeId in edge.NodeRefs)
+            {
+                if (!waysAtNodeBuilder.TryGetValue(nodeId, out var set))
+                {
+                    set = new HashSet<long>();
+                    waysAtNodeBuilder[nodeId] = set;
+                }
+
+                set.Add(edge.WayId);
+            }
+        }
+
+        var waysAtNode = waysAtNodeBuilder.ToDictionary(kv => kv.Key, kv => (IReadOnlyList<long>)kv.Value.OrderBy(w => w).ToList());
+        return (edgesByWayId, nodesById, waysAtNode);
     }
 
     /// <summary>Builds a fresh accessibility graph combining the loaded
@@ -332,11 +726,21 @@ public sealed class WorldState
             throw new ArgumentException($"Unknown building source id {buildingSourceId}.", nameof(buildingSourceId));
         }
 
-        var sources = _buildingStates.Values
+        var sourcesExcludingSelf = _buildingStates.Values
             .Where(b => b.SourceId != buildingSourceId)
             .Select(b => new NoiseIndex.NoiseSource(b.Archetype, b.LocalX, b.LocalZ));
 
-        return NoiseIndex.ComputeAt(target.LocalX, target.LocalZ, hourOfDay, sources);
+        return NoiseIndex.ComputeAt(target.LocalX, target.LocalZ, hourOfDay, sourcesExcludingSelf);
+    }
+
+    /// <summary>Same computation as <see cref="ComputeNoiseIndexAt"/> but
+    /// for an arbitrary point (e.g. a road node, for incident evaluation)
+    /// rather than a building -- includes every building as a source, with
+    /// no self-exclusion (there is no "self" for a bare point).</summary>
+    private int ComputeNoiseIndexAtPoint(double x, double z, int hourOfDay)
+    {
+        var sources = _buildingStates.Values.Select(b => new NoiseIndex.NoiseSource(b.Archetype, b.LocalX, b.LocalZ));
+        return NoiseIndex.ComputeAt(x, z, hourOfDay, sources);
     }
 
     public CohortNeeds ComputeCohortNeeds(string cohortId, int hourOfDay)
@@ -353,8 +757,9 @@ public sealed class WorldState
         var reachableJobs = _buildingStates.Values.Count(b => b.JobsCount > 0
             && graph.ShortestDistanceMeters(home.NearestRoadNodeId, b.NearestRoadNodeId) is { } d
             && d <= AccessibilityNeed.ReferenceDistanceMeters * 2);
+        var safety = ComputeSafetyScore(home.NearestRoadNodeId);
 
-        return CohortNeedsCalculator.Compute(noise, access, reachableJobs);
+        return CohortNeedsCalculator.Compute(noise, access, reachableJobs, safety);
     }
 
     /// <summary>A deterministic structural fingerprint of everything that
