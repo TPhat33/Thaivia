@@ -31,6 +31,16 @@ internal static class SimulationFixtures
     public const long Node4 = 4;
     public const long Node5 = 5;
 
+    // Adversarial fixture for AccessibilityGraphTests' Task Zero fix: two
+    // nodes 2m apart in straight-line space, CONNECTED (unlike Node2/Node3
+    // above) only via a long detour, so the discriminating assertion is not
+    // "null vs finite" but "finite and grossly different from straight
+    // line". See BuildDetourRoadGraph's doc comment.
+    public const long DetourBankANode = 20;
+    public const long DetourBankBNode = 21;
+    public const long DetourWaypointNode1 = 22;
+    public const long DetourWaypointNode2 = 23;
+
     public const long ResidentialBuildingId = 1000;
 
     // 2003, not 2000: AssignArchetype's deterministic hash of the source
@@ -60,6 +70,50 @@ internal static class SimulationFixtures
 
         return new RoadGraph(nodes, edges, new HashSet<long>(), new List<TurnRestrictionRecord>(), new List<Gateway>(),
             new RoadGraphBoundary(new List<double> { 0, 0, 1, 1 }, 0, new Dictionary<string, int>()));
+    }
+
+    /// <summary>
+    /// A CONNECTED graph (unlike <see cref="BuildRoadGraph"/>'s two
+    /// disconnected clusters) where the only path between two nodes that
+    /// are 2m apart in straight-line space is a ~502m detour "around the
+    /// canal" via a bridge:
+    ///
+    ///   DetourBankANode (0,0) --(250m)-- DetourWaypointNode1 (0,250)
+    ///                                        |
+    ///                                     (2m bridge)
+    ///                                        |
+    ///   DetourBankBNode (2,0)  --(250m)-- DetourWaypointNode2 (2,250)
+    ///
+    /// Total network distance A-&gt;B: 250 + 2 + 250 = 502m, vs a 2m
+    /// straight line. Added specifically because
+    /// <see cref="BuildRoadGraph"/>'s existing bridge test happened to have
+    /// network distance == straight-line distance by coincidence (nodes
+    /// are collinear there), which meant a Euclidean-distance mutant would
+    /// have passed every existing AccessibilityGraphTests case except the
+    /// fully-disconnected ones. This fixture is connected AND has a grossly
+    /// different network vs straight-line distance, so it actually
+    /// discriminates "sum of real edge lengths along the only path" from
+    /// "straight line, gated by a reachability check".
+    /// </summary>
+    public static RoadGraph BuildDetourRoadGraph()
+    {
+        var nodes = new List<RoadGraphNode>
+        {
+            new(DetourBankANode, 0, 0),
+            new(DetourWaypointNode1, 0, 250),
+            new(DetourWaypointNode2, 2, 250),
+            new(DetourBankBNode, 2, 0),
+        };
+
+        var edges = new List<RoadEdge>
+        {
+            BuildEdge(201, new long[] { DetourBankANode, DetourWaypointNode1 }, new (double, double)[] { (0, 0), (0, 250) }),
+            BuildEdge(202, new long[] { DetourWaypointNode1, DetourWaypointNode2 }, new (double, double)[] { (0, 250), (2, 250) }),
+            BuildEdge(203, new long[] { DetourWaypointNode2, DetourBankBNode }, new (double, double)[] { (2, 250), (2, 0) }),
+        };
+
+        return new RoadGraph(nodes, edges, new HashSet<long>(), new List<TurnRestrictionRecord>(), new List<Gateway>(),
+            new RoadGraphBoundary(new List<double> { 0, 0, 2, 250 }, 0, new Dictionary<string, int>()));
     }
 
     private static RoadEdge BuildEdge(long wayId, long[] nodeRefs, (double X, double Z)[] coords)

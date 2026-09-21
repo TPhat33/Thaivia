@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Thaivia.Core.MapPack;
 using Thaivia.Core.Simulation.Accessibility;
 using Xunit;
 
@@ -67,6 +68,89 @@ public class AccessibilityGraphTests
         // nodes are collinear; the point is it was COMPUTED from edges,
         // not read off as a straight line.
         Assert.Equal(32.0, distance!.Value, precision: 6);
+    }
+
+    /// <summary>
+    /// TASK ZERO (supervising engineer's fix): the existing
+    /// AddingAConnectingSegment_... test above proves the engine returns a
+    /// FINITE distance once a bridge connects two clusters, but on that
+    /// fixture the network distance (32m) coincidentally equals the
+    /// straight-line distance, because the fixture's nodes are collinear.
+    /// A naive "Euclidean distance + connectivity check" implementation
+    /// would pass that test too. This test uses a CONNECTED graph
+    /// (SimulationFixtures.BuildDetourRoadGraph) where the only path is a
+    /// ~502m detour around a 2m-wide gap, so network distance and
+    /// straight-line distance are grossly different -- the only way to
+    /// pass this test is to actually sum edge lengths along the real path.
+    /// </summary>
+    [Fact]
+    public void ConnectedGraphWithGrossDetour_NetworkDistance_MatchesTheDetourAndIsNotStraightLine()
+    {
+        var graph = new AccessibilityGraph(SimulationFixtures.BuildDetourRoadGraph());
+        var distance = graph.ShortestDistanceMeters(SimulationFixtures.DetourBankANode, SimulationFixtures.DetourBankBNode);
+
+        Assert.NotNull(distance);
+        // 250 (A -> waypoint1) + 2 (bridge) + 250 (waypoint2 -> B) = 502.
+        Assert.Equal(502.0, distance!.Value, precision: 6);
+
+        const double straightLineDistance = 2.0;
+        Assert.NotEqual(straightLineDistance, distance.Value, precision: 0);
+        Assert.True(
+            Math.Abs(distance.Value - straightLineDistance) > 100,
+            $"expected the network distance ({distance.Value}m) to be grossly different from the straight-line distance ({straightLineDistance}m) -- otherwise this fixture is not adversarial enough to discriminate graph-vs-radius.");
+    }
+
+    /// <summary>
+    /// The mutation-style control the supervising engineer asked for:
+    /// demonstrates, independently of the assertion above, that a
+    /// deliberately buggy "Euclidean distance, only gated by a
+    /// reachability check" router -- exactly the regression class this
+    /// suite exists to catch -- reports a materially different (wrong)
+    /// answer on this fixture. This proves the fixture's discriminating
+    /// power is real, not merely assumed by the test author.
+    /// </summary>
+    [Fact]
+    public void ConnectedGraphWithGrossDetour_NaiveEuclideanStandIn_WouldReportAMaterialityDifferentAnswer()
+    {
+        var roadGraph = SimulationFixtures.BuildDetourRoadGraph();
+        var graph = new AccessibilityGraph(roadGraph);
+
+        var realNetworkDistance = graph.ShortestDistanceMeters(SimulationFixtures.DetourBankANode, SimulationFixtures.DetourBankBNode);
+        Assert.NotNull(realNetworkDistance);
+
+        var naiveEuclideanStandIn = NaiveEuclideanDistanceIfReachable(roadGraph, graph, SimulationFixtures.DetourBankANode, SimulationFixtures.DetourBankBNode);
+        Assert.NotNull(naiveEuclideanStandIn);
+
+        Assert.True(
+            Math.Abs(realNetworkDistance!.Value - naiveEuclideanStandIn!.Value) > 100,
+            $"the real network distance ({realNetworkDistance.Value}m) and the naive Euclidean stand-in ({naiveEuclideanStandIn.Value}m) must differ grossly on this fixture, or it fails to discriminate the two implementations.");
+    }
+
+    /// <summary>A deliberately naive stand-in for what a buggy "Euclidean
+    /// distance, gated only by a graph reachability check" router would
+    /// compute. Used ONLY by the control test above -- never referenced by
+    /// production code. Reachability still goes through the real
+    /// <see cref="AccessibilityGraph"/>, so this control isolates exactly
+    /// the distance-computation bug class the supervising engineer
+    /// described, rather than also faking connectivity.</summary>
+    private static double? NaiveEuclideanDistanceIfReachable(RoadGraph roadGraph, AccessibilityGraph graph, long fromNodeId, long toNodeId)
+    {
+        if (graph.ShortestDistanceMeters(fromNodeId, toNodeId) is null)
+        {
+            return null;
+        }
+
+        var nodeById = new Dictionary<long, RoadGraphNode>();
+        foreach (var node in roadGraph.Nodes)
+        {
+            nodeById[node.NodeId] = node;
+        }
+
+        var a = nodeById[fromNodeId];
+        var b = nodeById[toNodeId];
+        var dx = a.LocalX - b.LocalX;
+        var dz = a.LocalZ - b.LocalZ;
+        return Math.Sqrt(dx * dx + dz * dz);
     }
 
     [Fact]
