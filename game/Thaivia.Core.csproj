@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure C# simulation/data core: deliberately has NO PackageReference
+    or ProjectReference to anything Unity-related, and no `using
+    UnityEngine` anywhere under its source tree. That absence is enforced
+    two ways, not just by convention:
+      1. This project's dependency graph literally cannot resolve
+         `UnityEngine` (no such package/assembly is referenced here), so
+         any `using UnityEngine;` fails `dotnet build` immediately.
+      2. Assets/Scripts/Core/Thaivia.Core.asmdef sets
+         "noEngineReferences": true, which makes the Unity compiler
+         itself refuse a UnityEngine reference from this same source tree
+         once a human opens it in the Editor.
+    See Thaivia.Core.Tests/NoUnityEngineReferenceTests.cs for a source
+    scan test that also checks this on every `dotnet test` run.
+
+    Source files are NOT copied: they are compiled directly from
+    Assets/Scripts/Core/ (the same files a future Unity asmdef will pick
+    up), so `dotnet build` here and a Unity Editor build later compile
+    the identical .cs files, not a fork of them.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Thaivia.Core</RootNamespace>
+    <AssemblyName>Thaivia.Core</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Assets/Scripts/Core/**/*.cs" />
+  </ItemGroup>
+
+</Project>

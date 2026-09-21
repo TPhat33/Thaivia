@@ -1,0 +1,411 @@
+{
+  "content_hash": "sha256:3c89d2813e49182b8a73deabe1b360e219a2cc221e17f40c24ade81c45087f96",
+  "payload": {
+    "geography_base": {
+      "barriers": [],
+      "building_parts": [
+        {
+          "feature_class": "building_part",
+          "ring_groups_canonical": [
+            {
+              "holes": [],
+              "outer": [
+                [
+                  -60291.582827681,
+                  -76027.083647596
+                ],
+                [
+                  -60280.738414658,
+                  -76027.039682641
+                ],
+                [
+                  -60280.783257061,
+                  -76015.979416709
+                ],
+                [
+                  -60291.627665729,
+                  -76016.023381979
+                ],
+                [
+                  -60291.582827681,
+                  -76027.083647596
+                ]
+              ]
+            }
+          ],
+          "ring_groups_render_1cm": [
+            {
+              "holes": [],
+              "outer": [
+                [
+                  -60291.58,
+                  -76027.08
+                ],
+                [
+                  -60280.74,
+                  -76027.04000000001
+                ],
+                [
+                  -60280.78,
+                  -76015.98
+                ],
+                [
+                  -60291.630000000005,
+                  -76016.02
+                ],
+                [
+                  -60291.58,
+                  -76027.08
+                ]
+              ]
+            }
+          ],
+          "simulation_assumptions": [],
+          "source_id": -1105,
+          "source_kind": "way",
+          "source_tags": {
+            "building:levels": "2",
+            "building:part": "yes",
+            "synthetic": "true"
+          },
+          "visual_assumptions": [
+            {
+              "field": "height_m",
+              "rule": "height_from_building_levels_x3.2m_v1",
+              "value": 6.4
+            }
+          ]
+        }
+      ],
+      "buildings": [
+        {
+          "feature_class": "building",
+          "ring_groups_canonical": [
+            {
+              "holes": [
+                [
+                  [
+                    -60269.983695182,
+                    -76004.875180842
+                  ],
+                  [
+                    -60226.606073622,
+                    -76004.699258729
+                  ],
+                  [
+                    -60226.785535075,
+                    -75960.458187568
+                  ],
+                  [
+                    -60270.163086953,
+                    -75960.634114705
+                  ],
+                  [
+                    -60269.983695182,
+                    -76004.875180842
+                  ]
+                ]
+              ],
+              "outer": [
+                [
+                  -60302.382407042,
+                  -76038.187873503
+                ],
+                [
+                  -60193.938222487,
+                  -76037.748077641
+                ],
+                [
+                  -60194.387006774,
+                  -75927.145390314
+                ],
+                [
+                  -60302.830755816,
+                  -75927.585217579
+                ],
+                [
+                  -60302.382407042,
+                  -76038.187873503
+                ]
+              ]
+            },
+            {
+              "holes": [
+                [
+                  [
+                    -59190.07166031,
+                    -74894.426427818
+                  ],
+                  [
+                    -59146.695657702,
+                    -74894.248670846
+                  ],
+                  [
+                    -59146.876998009,
+                    -74850.007440482
+                  ],
+                  [
+                    -59190.252930881,
+                    -74850.185202526
+                  ],
+                  [
+                    -59190.07166031,
+                    -74894.426427818
+                  ]
+                ]
+              ],
+              "outer": [
+                [
+                  -59222.467748887,
+                  -74927.74061593
+                ],
+                [
+                  -59114.027611619,
+                  -74927.296233012
+                ],
+                [
+                  -59114.481093141,
+                  -74816.693147586
+                ],
+                [
+                  -59222.92079456,
+                  -74817.137562206
+                ],
+                [
+                  -59222.467748887,
+                  -74927.74061593
+                ]
+              ]
+            }
+          ],
+          "ring_groups_render_1cm": [
+            {
+              "holes": [
+                [
+                  [
+                    -60269.98,
+                    -76004.88
+                  ],
+                  [
+                    -60226.61,
+                    -76004.7
+                  ],
+                  [
+                    -60226.79,
+                    -75960.46
+                  ],
+                  [
+                    -60270.16,
+                    -75960.63
+                  ],
+                  [
+                    -60269.98,
+                    -76004.88
+                  ]
+                ]
+              ],
+              "outer": [
+                [
+                  -60302.380000000005,
+                  -76038.19
+                ],
+                [
+                  -60193.94,
+                  -76037.75
+                ],
+                [
+                  -60194.39,
+                  -75927.15000000001
+                ],
+                [
+                  -60302.83,
+                  -75927.59
+                ],
+                [
+                  -60302.380000000005,
+                  -76038.19
+                ]
+              ]
+            },
+            {
+              "holes": [
+                [
+                  [
+                    -59190.07,
+                    -74894.43000000001
+                  ],
+                  [
+                    -59146.700000000004,
+                    -74894.25
+                  ],
+                  [
+                    -59146.880000000005,
+                    -74850.01
+                  ],
+                  [
+                    -59190.25,
+                    -74850.19
+                  ],
+                  [
+                    -59190.07,
+                    -74894.43000000001
+                  ]
+                ]
+              ],
+              "outer": [
+                [
+                  -59222.47,
+                  -74927.74
+                ],
+                [
+                  -59114.03,
+                  -74927.3
+                ],
+                [
+                  -59114.48,
+                  -74816.69
+                ],
+                [
+                  -59222.92,
+                  -74817.14
+                ],
+                [
+                  -59222.47,
+                  -74927.74
+                ]
+              ]
+            }
+          ],
+          "simulation_assumptions": [],
+          "source_id": -1201,
+          "source_kind": "relation",
+          "source_tags": {
+            "building": "yes",
+            "synthetic": "true",
+            "type": "multipolygon"
+          },
+          "visual_assumptions": [
+            {
+              "field": "height_m",
+              "rule": "default_building_height_no_levels_or_height_tag_v1",
+              "value": 6.0
+            }
+          ]
+        }
+      ],
+      "water_polygons": [],
+      "waterways": []
+    },
+    "manifest": {
+      "crs_code": "EPSG:32647",
+      "crs_validation_warnings": [],
+      "driving_side": "left",
+      "importer_version": "0.1.0",
+      "local_origin": {
+        "crs_code": "EPSG:32647",
+        "origin_easting_m": 671988.994639728,
+        "origin_northing_m": 1516717.856848844
+      },
+      "map_id": "th-bkk-pilot-001",
+      "schema_version": "0.1.0",
+      "settings": {
+        "candidate_projected_crs": "EPSG:32647",
+        "context_buffer_m": 300,
+        "driving_side": "left",
+        "editable_bbox_wgs84_lonlat": [
+          100.586,
+          13.71,
+          100.595,
+          13.719
+        ],
+        "importer_version": "0.1.0",
+        "map_id": "th-bkk-pilot-001",
+        "schema_version": "0.1.0"
+      },
+      "settings_hash": "c9af71bb5a7d2579734e3e249345b90017a657b76baf5bf30deeb01c409156e4",
+      "unity_axis_convention": "X=east_offset_m, Z=north_offset_m, Y=up_reserved_no_elevation_source"
+    },
+    "provenance": {
+      "attribution": {
+        "copyright_url": "https://www.openstreetmap.org/copyright",
+        "notice": "\u00a9 OpenStreetMap contributors",
+        "odbl_license_url": "https://opendatacommons.org/licenses/odbl/"
+      },
+      "settings_hash": "c9af71bb5a7d2579734e3e249345b90017a657b76baf5bf30deeb01c409156e4",
+      "sha256": "718c59e57ae4030fcd4910d06827d63ab1aee00015c5aead9f114462db69137c",
+      "size_bytes": 3112,
+      "source_kind": "local_file",
+      "source_location": "tests/fixtures/synthetic/multipart_building.synthetic.osm.xml",
+      "source_snapshot_timestamp": null,
+      "source_snapshot_unknown_reason": "source snapshot time not derivable from this file/transfer; OSM PBF/XML extracts do not always carry a reliable snapshot timestamp header",
+      "synthetic": true,
+      "synthetic_notice": "Derived from a tests/fixtures/synthetic/ fixture. NOT real OSM data and does not represent any real place in Thailand; never treat as a pilot pack."
+    },
+    "quality_report": {
+      "dropped": [],
+      "duplicate_associations": [],
+      "incomplete_relations": [],
+      "quarantined": [],
+      "rejected_counts": {
+        "dropped_features": 0,
+        "incomplete_relations": 0,
+        "topology_conflicts": 0,
+        "unsupported_restrictions": 0
+      },
+      "retained_counts": {
+        "barriers": 0,
+        "building_parts": 1,
+        "buildings": 1,
+        "gateways": 0,
+        "road_edges": 0,
+        "road_nodes": 0,
+        "turn_restrictions_supported": 0,
+        "water_polygons": 0,
+        "waterways": 0
+      },
+      "roundtrip_error_m": {
+        "max": 0.006072779440938622,
+        "mean": 0.004029350446060275,
+        "sample_count": 20
+      },
+      "topology_conflicts": [],
+      "unknown_counts": {
+        "building_height": 1,
+        "building_use": 2,
+        "road_maxspeed": 0,
+        "road_width_or_lanes": 0
+      },
+      "unsupported_restrictions": []
+    },
+    "road_graph": {
+      "boundary": {
+        "context_buffer_m": 300,
+        "editable_bbox_wgs84_lonlat": [
+          100.586,
+          13.71,
+          100.595,
+          13.719
+        ],
+        "node_classification_counts": {
+          "buffer": 0,
+          "interior": 0,
+          "outside": 0
+        }
+      },
+      "edges": [],
+      "gateways": [],
+      "junction_node_ids": [],
+      "nodes": [],
+      "turn_restrictions": []
+    },
+    "simulation_initialization": {
+      "note": "G1 scope only: kept structurally separate from GeographyBase per the three-layer data separation rule. Population/jobs/noise/demand scenario seeding is G3 work; no simulation statistics are populated here yet.",
+      "schema_version": "0.1.0",
+      "seed": {}
+    }
+  },
+  "volatile": {
+    "baked_at": "2026-09-21T03:26:05.855249+00:00",
+    "source_retrieved_at": "2026-09-21T03:26:05.502981+00:00"
+  }
+}

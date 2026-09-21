@@ -1,0 +1,527 @@
+{
+  "content_hash": "sha256:0944b65c06a667b4c354bbf83b965ea5f0ade024f14802f2131fc5c589164e07",
+  "payload": {
+    "geography_base": {
+      "barriers": [],
+      "building_parts": [],
+      "buildings": [],
+      "water_polygons": [],
+      "waterways": []
+    },
+    "manifest": {
+      "crs_code": "EPSG:32647",
+      "crs_validation_warnings": [],
+      "driving_side": "left",
+      "importer_version": "0.1.0",
+      "local_origin": {
+        "crs_code": "EPSG:32647",
+        "origin_easting_m": 671988.994639728,
+        "origin_northing_m": 1516717.856848844
+      },
+      "map_id": "th-bkk-pilot-001",
+      "schema_version": "0.1.0",
+      "settings": {
+        "candidate_projected_crs": "EPSG:32647",
+        "context_buffer_m": 300,
+        "driving_side": "left",
+        "editable_bbox_wgs84_lonlat": [
+          100.586,
+          13.71,
+          100.595,
+          13.719
+        ],
+        "importer_version": "0.1.0",
+        "map_id": "th-bkk-pilot-001",
+        "schema_version": "0.1.0"
+      },
+      "settings_hash": "c9af71bb5a7d2579734e3e249345b90017a657b76baf5bf30deeb01c409156e4",
+      "unity_axis_convention": "X=east_offset_m, Z=north_offset_m, Y=up_reserved_no_elevation_source"
+    },
+    "provenance": {
+      "attribution": {
+        "copyright_url": "https://www.openstreetmap.org/copyright",
+        "notice": "\u00a9 OpenStreetMap contributors",
+        "odbl_license_url": "https://opendatacommons.org/licenses/odbl/"
+      },
+      "settings_hash": "c9af71bb5a7d2579734e3e249345b90017a657b76baf5bf30deeb01c409156e4",
+      "sha256": "992f9a891df0fa047c2e69a776a2bc22cea0dc808f1209731a7a3125c158479f",
+      "size_bytes": 2786,
+      "source_kind": "local_file",
+      "source_location": "/home/user/Thaivia/tests/fixtures/synthetic/road_graph_layers.synthetic.osm.xml",
+      "source_snapshot_timestamp": null,
+      "source_snapshot_unknown_reason": "source snapshot time not derivable from this file/transfer; OSM PBF/XML extracts do not always carry a reliable snapshot timestamp header",
+      "synthetic": true,
+      "synthetic_notice": "Derived from a tests/fixtures/synthetic/ fixture. NOT real OSM data and does not represent any real place in Thailand; never treat as a pilot pack."
+    },
+    "quality_report": {
+      "dropped": [],
+      "duplicate_associations": [],
+      "incomplete_relations": [],
+      "quarantined": [],
+      "rejected_counts": {
+        "dropped_features": 0,
+        "incomplete_relations": 0,
+        "topology_conflicts": 0,
+        "unsupported_restrictions": 1
+      },
+      "retained_counts": {
+        "barriers": 0,
+        "building_parts": 0,
+        "buildings": 0,
+        "gateways": 7,
+        "road_edges": 4,
+        "road_nodes": 9,
+        "turn_restrictions_supported": 1,
+        "water_polygons": 0,
+        "waterways": 0
+      },
+      "roundtrip_error_m": {
+        "max": 0.00646587338858058,
+        "mean": 0.004100838613902867,
+        "sample_count": 9
+      },
+      "topology_conflicts": [],
+      "unknown_counts": {
+        "building_height": 0,
+        "building_use": 0,
+        "road_maxspeed": 4,
+        "road_width_or_lanes": 4
+      },
+      "unsupported_restrictions": [
+        {
+          "detail": "via-way (complex multi-way) restriction not modeled by this graph builder",
+          "feature_id": "relation/-502",
+          "kind": "unsupported_restriction"
+        }
+      ]
+    },
+    "road_graph": {
+      "boundary": {
+        "context_buffer_m": 300,
+        "editable_bbox_wgs84_lonlat": [
+          100.586,
+          13.71,
+          100.595,
+          13.719
+        ],
+        "node_classification_counts": {
+          "buffer": 0,
+          "interior": 0,
+          "outside": 9
+        }
+      },
+      "edges": [
+        {
+          "access_modes": {},
+          "bridge": false,
+          "coords_canonical": [
+            [
+              -61382.384471586,
+              -77148.585329622
+            ],
+            [
+              -61360.694827743,
+              -77148.498320774
+            ],
+            [
+              -61371.628387539,
+              -77126.421375144
+            ],
+            [
+              -61382.384471586,
+              -77148.585329622
+            ]
+          ],
+          "coords_render_1cm": [
+            [
+              -61382.380000000005,
+              -77148.59
+            ],
+            [
+              -61360.69,
+              -77148.5
+            ],
+            [
+              -61371.630000000005,
+              -77126.42
+            ],
+            [
+              -61382.380000000005,
+              -77148.59
+            ]
+          ],
+          "from_node": -307,
+          "grade_separated": false,
+          "layer": 0,
+          "node_refs": [
+            -307,
+            -308,
+            -309,
+            -307
+          ],
+          "oneway": "forward",
+          "simulation_assumptions": [
+            {
+              "field": "maxspeed_kph",
+              "rule": "default_maxspeed_by_highway_class_v1:residential",
+              "value": 30
+            }
+          ],
+          "source_tags": {
+            "highway": "residential",
+            "junction": "roundabout",
+            "synthetic": "true"
+          },
+          "to_node": -307,
+          "tunnel": false,
+          "visual_assumptions": [
+            {
+              "field": "width_m",
+              "rule": "default_road_width_by_highway_class_v1:residential",
+              "value": 6.0
+            }
+          ],
+          "way_id": -404
+        },
+        {
+          "access_modes": {},
+          "bridge": true,
+          "coords_canonical": [
+            [
+              -62408.467328825,
+              -78203.416867309
+            ],
+            [
+              -62299.575642794,
+              -78313.587910062
+            ]
+          ],
+          "coords_render_1cm": [
+            [
+              -62408.47,
+              -78203.42
+            ],
+            [
+              -62299.58,
+              -78313.59
+            ]
+          ],
+          "from_node": -305,
+          "grade_separated": true,
+          "layer": 1,
+          "node_refs": [
+            -305,
+            -306
+          ],
+          "oneway": "no",
+          "simulation_assumptions": [
+            {
+              "field": "maxspeed_kph",
+              "rule": "default_maxspeed_by_highway_class_v1:secondary",
+              "value": 50
+            }
+          ],
+          "source_tags": {
+            "bridge": "yes",
+            "highway": "secondary",
+            "layer": "1",
+            "name": "Synthetic Bridge C",
+            "synthetic": "true"
+          },
+          "to_node": -306,
+          "tunnel": false,
+          "visual_assumptions": [
+            {
+              "field": "width_m",
+              "rule": "default_road_width_by_highway_class_v1:secondary",
+              "value": 9.0
+            }
+          ],
+          "way_id": -403
+        },
+        {
+          "access_modes": {},
+          "bridge": false,
+          "coords_canonical": [
+            [
+              -62354.021594141,
+              -78258.502435307
+            ],
+            [
+              -62353.582217666,
+              -78369.104327199
+            ]
+          ],
+          "coords_render_1cm": [
+            [
+              -62354.020000000004,
+              -78258.5
+            ],
+            [
+              -62353.58,
+              -78369.1
+            ]
+          ],
+          "from_node": -302,
+          "grade_separated": false,
+          "layer": 0,
+          "node_refs": [
+            -302,
+            -304
+          ],
+          "oneway": "no",
+          "simulation_assumptions": [
+            {
+              "field": "maxspeed_kph",
+              "rule": "default_maxspeed_by_highway_class_v1:residential",
+              "value": 30
+            }
+          ],
+          "source_tags": {
+            "highway": "residential",
+            "name": "Synthetic Road B",
+            "synthetic": "true"
+          },
+          "to_node": -304,
+          "tunnel": false,
+          "visual_assumptions": [
+            {
+              "field": "width_m",
+              "rule": "default_road_width_by_highway_class_v1:residential",
+              "value": 6.0
+            }
+          ],
+          "way_id": -402
+        },
+        {
+          "access_modes": {},
+          "bridge": false,
+          "coords_canonical": [
+            [
+              -62462.473871981,
+              -78258.933075383
+            ],
+            [
+              -62354.021594141,
+              -78258.502435307
+            ],
+            [
+              -62245.569286079,
+              -78258.071368858
+            ]
+          ],
+          "coords_render_1cm": [
+            [
+              -62462.47,
+              -78258.93000000001
+            ],
+            [
+              -62354.020000000004,
+              -78258.5
+            ],
+            [
+              -62245.57,
+              -78258.07
+            ]
+          ],
+          "from_node": -301,
+          "grade_separated": false,
+          "layer": 0,
+          "node_refs": [
+            -301,
+            -302,
+            -303
+          ],
+          "oneway": "reversed",
+          "simulation_assumptions": [
+            {
+              "field": "maxspeed_kph",
+              "rule": "default_maxspeed_by_highway_class_v1:residential",
+              "value": 30
+            }
+          ],
+          "source_tags": {
+            "highway": "residential",
+            "name": "Synthetic Road A",
+            "oneway": "-1",
+            "synthetic": "true"
+          },
+          "to_node": -303,
+          "tunnel": false,
+          "visual_assumptions": [
+            {
+              "field": "width_m",
+              "rule": "default_road_width_by_highway_class_v1:residential",
+              "value": 6.0
+            }
+          ],
+          "way_id": -401
+        }
+      ],
+      "gateways": [
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.02,
+          "lon": 100.02,
+          "namespace": "simulation_assumption",
+          "node_id": -307,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -404
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.0095,
+          "lon": 100.0115,
+          "namespace": "simulation_assumption",
+          "node_id": -306,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -403
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.0105,
+          "lon": 100.0105,
+          "namespace": "simulation_assumption",
+          "node_id": -305,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -403
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.009,
+          "lon": 100.011,
+          "namespace": "simulation_assumption",
+          "node_id": -304,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -402
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.01,
+          "lon": 100.012,
+          "namespace": "simulation_assumption",
+          "node_id": -303,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -401
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.01,
+          "lon": 100.011,
+          "namespace": "simulation_assumption",
+          "node_id": -302,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -402
+        },
+        {
+          "external_capacity_veh_per_hour": 400,
+          "inbound_demand_veh_per_hour": 150,
+          "lat": 13.01,
+          "lon": 100.01,
+          "namespace": "simulation_assumption",
+          "node_id": -301,
+          "outbound_demand_veh_per_hour": 150,
+          "rule": "gateway_default_bounded_demand_v1",
+          "way_id": -401
+        }
+      ],
+      "junction_node_ids": [
+        -302
+      ],
+      "nodes": [
+        {
+          "local_x": -61371.628387539,
+          "local_z": -77126.421375144,
+          "node_id": -309
+        },
+        {
+          "local_x": -61360.694827743,
+          "local_z": -77148.498320774,
+          "node_id": -308
+        },
+        {
+          "local_x": -61382.384471586,
+          "local_z": -77148.585329622,
+          "node_id": -307
+        },
+        {
+          "local_x": -62299.575642794,
+          "local_z": -78313.587910062,
+          "node_id": -306
+        },
+        {
+          "local_x": -62408.467328825,
+          "local_z": -78203.416867309,
+          "node_id": -305
+        },
+        {
+          "local_x": -62353.582217666,
+          "local_z": -78369.104327199,
+          "node_id": -304
+        },
+        {
+          "local_x": -62245.569286079,
+          "local_z": -78258.071368858,
+          "node_id": -303
+        },
+        {
+          "local_x": -62354.021594141,
+          "local_z": -78258.502435307,
+          "node_id": -302
+        },
+        {
+          "local_x": -62462.473871981,
+          "local_z": -78258.933075383,
+          "node_id": -301
+        }
+      ],
+      "turn_restrictions": [
+        {
+          "from_way": -401,
+          "relation_id": -502,
+          "restriction_type": "no_entry",
+          "supported": false,
+          "to_way": -402,
+          "unsupported_reason": "via-way (complex multi-way) restriction not modeled by this graph builder",
+          "via": [
+            -403
+          ],
+          "via_kind": "w"
+        },
+        {
+          "from_way": -401,
+          "relation_id": -501,
+          "restriction_type": "no_left_turn",
+          "supported": true,
+          "to_way": -402,
+          "unsupported_reason": null,
+          "via": [
+            -302
+          ],
+          "via_kind": "n"
+        }
+      ]
+    },
+    "simulation_initialization": {
+      "note": "G1 scope only: kept structurally separate from GeographyBase per the three-layer data separation rule. Population/jobs/noise/demand scenario seeding is G3 work; no simulation statistics are populated here yet.",
+      "schema_version": "0.1.0",
+      "seed": {}
+    }
+  },
+  "volatile": {
+    "baked_at": "2026-09-21T03:26:00.128738+00:00",
+    "source_retrieved_at": "2026-09-21T03:25:56.769715+00:00"
+  }
+}

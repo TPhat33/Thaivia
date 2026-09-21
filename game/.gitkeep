@@ -1,8 +1,0 @@
-This directory is reserved for a real Unity project (game/<UnityProjectName>/...).
-
-No Unity project exists here yet: no Unity Editor, license, or build
-tooling is available in the environment that bootstrapped this repo
-(G0, 2026-09-20). See docs/decisions/0002-unity-unverifiable-in-this-environment.md.
-
-Nothing here is, or should ever be, a fabricated ProjectVersion.txt or
-package lock implying the Editor was opened.
