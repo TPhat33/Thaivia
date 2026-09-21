@@ -26,6 +26,14 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     doctor_p = subparsers.add_parser("doctor", help="Check environment/toolchain health")
+    doctor_p.add_argument(
+        "--probe-network",
+        action="store_true",
+        help=(
+            "Live-probe configured OSM source endpoints instead of reporting the cached "
+            "status from configs/sources.json (re-attempts hosts already denied by policy)"
+        ),
+    )
     doctor_p.set_defaults(func=doctor.main)
 
     acquire.add_subparser(subparsers)

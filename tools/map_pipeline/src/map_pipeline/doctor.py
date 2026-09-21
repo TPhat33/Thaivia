@@ -140,11 +140,35 @@ def _probe_url(url: str) -> tuple[Status, str]:
         return Status.UNVERIFIED, f"connection failed: {detail}"
 
 
-def check_sources_reachability() -> list[Check]:
-    try:
-        cfg = load_sources()
-    except ConfigError as exc:
-        return [Check("source_reachability", Status.MISSING, str(exc))]
+def _cached_reachability_checks(cfg) -> list[Check]:
+    """Reports reachability from the status already recorded in
+    configs/sources.json (last confirmed during the G0 session), instead
+    of re-probing hosts the egress proxy has already denied by policy.
+    This is the default: `thaivia doctor` should not re-attempt hosts
+    that are blocked as a matter of organization policy on every single
+    invocation."""
+    checks: list[Check] = []
+    checked_at = cfg.data.get("checked_at", "unknown date")
+    for src in cfg.data.get("sources", []):
+        name = src.get("name", "?")
+        recorded = src.get("recorded_status", "unverified")
+        detail = src.get("recorded_status_detail", "no recorded_status_detail in configs/sources.json")
+        status = {
+            "available": Status.AVAILABLE,
+            "blocked": Status.BLOCKED,
+            "unverified": Status.UNVERIFIED,
+        }.get(recorded, Status.UNVERIFIED)
+        checks.append(
+            Check(
+                f"source:{name}",
+                status,
+                f"[cached result from {checked_at}, not re-probed] {detail}",
+            )
+        )
+    return checks
+
+
+def _live_reachability_checks(cfg) -> list[Check]:
     checks: list[Check] = []
     for src in cfg.data.get("sources", []):
         name = src.get("name", "?")
@@ -155,11 +179,21 @@ def check_sources_reachability() -> list[Check]:
             )
             continue
         status, detail = _probe_url(url)
-        checks.append(Check(f"source:{name}", status, f"{url} -> {detail}"))
+        checks.append(Check(f"source:{name}", status, f"[live probe] {url} -> {detail}"))
     return checks
 
 
-def run_doctor() -> DoctorReport:
+def check_sources_reachability(probe_network: bool = False) -> list[Check]:
+    try:
+        cfg = load_sources()
+    except ConfigError as exc:
+        return [Check("source_reachability", Status.MISSING, str(exc))]
+    if probe_network:
+        return _live_reachability_checks(cfg)
+    return _cached_reachability_checks(cfg)
+
+
+def run_doctor(probe_network: bool = False) -> DoctorReport:
     report = DoctorReport()
     report.checks.append(check_python_version())
     for mod in REQUIRED_IMPORTS:
@@ -167,7 +201,7 @@ def run_doctor() -> DoctorReport:
     report.checks.append(check_config(load_pilot_area, "pilot-area.json"))
     report.checks.append(check_config(load_sources, "sources.json"))
     report.checks.append(check_cache())
-    report.checks.extend(check_sources_reachability())
+    report.checks.extend(check_sources_reachability(probe_network=probe_network))
     return report
 
 
@@ -185,7 +219,14 @@ def format_report(report: DoctorReport) -> str:
     return "\n".join(lines)
 
 
-def main(_args) -> int:
-    report = run_doctor()
+def main(args) -> int:
+    probe_network = bool(getattr(args, "probe_network", False))
+    report = run_doctor(probe_network=probe_network)
     print(format_report(report))
+    if not probe_network:
+        print(
+            "\nNote: source reachability above is a CACHED result from configs/sources.json, "
+            "not a live probe. Pass --probe-network to re-probe live (this will re-attempt "
+            "hosts already denied by organization egress policy; see ADR-0003)."
+        )
     return exit_codes.GENERAL_ERROR if report.has_hard_failure else exit_codes.OK

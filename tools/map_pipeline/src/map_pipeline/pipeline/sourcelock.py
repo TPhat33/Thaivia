@@ -137,12 +137,32 @@ def canonical_lock_filename(map_id: str) -> str:
     return f"{map_id}.sourcelock.json"
 
 
-def source_bytes_filename(map_id: str, sha256_hex: str) -> str:
+def guess_source_extension(location: str) -> str:
+    """osmium detects file format from the filename extension, so the
+    content-addressed cache filename must keep a recognizable one (it
+    cannot rely on the original path's directory/basename, since two
+    different source locations can hash to the same hex prefix territory
+    only in astronomically unlikely cases, but must always keep a valid
+    extension). Recognizes the extensions osmium/Geofabrik/Overpass
+    actually use; anything else falls back to `.osm.xml` since that is
+    the most common bounded-extract format and osmium can sniff plain
+    XML content even with a slightly-wrong-but-still-`.xml`-shaped name."""
+    lowered = location.lower()
+    for ext in (".osm.pbf", ".osm.bz2", ".osm.gz", ".osm.xml", ".pbf", ".xml"):
+        if lowered.endswith(ext):
+            return ext
+    return ".osm.xml"
+
+
+def source_bytes_filename(map_id: str, sha256_hex: str, source_location: str = "") -> str:
     """Content-addressed filename for the raw source bytes a lock pins,
     so `build`/`verify` can always find the exact bytes a given lock
     refers to regardless of how many times `acquire` has since been
-    re-run with different settings or a different source."""
-    return f"{map_id}.{sha256_hex[:16]}.source"
+    re-run with different settings or a different source. Keeps a real
+    file extension (guessed from `source_location` when given) because
+    osmium picks its parser by filename suffix."""
+    ext = guess_source_extension(source_location) if source_location else ".osm.xml"
+    return f"{map_id}.{sha256_hex[:16]}.source{ext}"
 
 
 def write_source_lock(cache_dir: Path, lock: SourceLock) -> dict[str, Any]:
