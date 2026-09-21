@@ -1,5 +1,110 @@
 # Progress log
 
+## Session 2 — 2026-09-21 (G1 Real-map data pipeline)
+
+### Task IDs และไฟล์ที่เปลี่ยน
+
+ทำ G1-01 ถึง G1-09, G1-11, G1-12 ครบ (สถานะ `done` — pipeline
+implement+test จริงด้วย synthetic fixtures) G1-10 ยัง `blocked` เพราะยัง
+ไม่มีข้อมูล OSM จริง (ดู ADR-0003) รายละเอียดแต่ละ task ดูใน
+`TASKS.json`
+
+ไฟล์ใหม่/แก้หลัก:
+
+- `tools/map_pipeline/src/map_pipeline/pipeline/` (ใหม่ทั้งโฟลเดอร์):
+  `settings.py`, `tags.py`, `geometry_utils.py`, `osm_parse.py`,
+  `projection.py`, `normalize.py`, `quality.py`, `features.py`,
+  `assumptions.py`, `graph.py`, `boundary.py`, `sourcelock.py`,
+  `acquire_net.py`, `mappack.py`
+- `tools/map_pipeline/schemas/mappack.schema.json` (ใหม่)
+- `tools/map_pipeline/src/map_pipeline/commands/{acquire,build,audit,verify}.py`
+  (เขียนใหม่ทั้งหมด จาก stub เป็น implementation จริง)
+- `tools/map_pipeline/src/map_pipeline/doctor.py`,
+  `tools/map_pipeline/src/map_pipeline/cli.py` (เพิ่ม `--probe-network`)
+- `tests/fixtures/synthetic/{road_graph_layers,boundary_gateway,degenerate_hostile,multipart_building}.synthetic.osm.xml`
+  (ใหม่ — ทุกไฟล์มี synthetic marker ผ่าน `test_synthetic_fixtures.py`)
+- `tests/test_pipeline_{projection,graph,features,boundary,sourcelock,mappack_determinism,assumptions,degenerate,end_to_end}.py`
+  (ใหม่ทั้งหมด) และ `tests/test_cli_smoke.py` (แก้ให้ตรงพฤติกรรมจริง)
+- `docs/decisions/0005..0007-*.md` (ใหม่)
+- `docs/evidence/g1-*.log`, `docs/evidence/g1-synthetic-e2e-audit-sample.md`
+  (ใหม่)
+
+### สิ่งที่ทำงานจริง (ยืนยันด้วยการรันจริง)
+
+Pipeline เต็ม: `acquire -> source lock/hash -> buffered extract -> entity
+parse -> project -> normalize -> graph -> boundary/gateways -> audit ->
+MapPack bake -> verify` implement ครบตาม spec ของ
+`REAL_MAP_PIPELINE`/`IMPLEMENTATION_PLAN.th.md` §6 (ดู module map เต็มใน
+`docs/progress.md` ท้ายรายงานนี้/handback message) ทดสอบผ่าน pytest 67
+tests (จาก 17 ที่ G0) ครอบคลุมทุก test case ที่ spec ระบุไว้ (lon/lat
+round-trip, bridge-vs-layer ไม่กลายเป็น junction, oneway=-1, turn
+restrictions, multipolygon holes/multipart/building:part,
+unknown-ไม่ใช่-empty-land, buffered crop + gateways, deterministic bake,
+assumption namespace isolation, degenerate/hostile input)
+
+`thaivia acquire --from-url` ทดสอบจริงกับ
+`https://download.geofabrik.de/asia/thailand-latest.osm.pbf` — fail
+ทันทีด้วยข้อความบล็อกที่ชัดเจน (403 บน CONNECT) ไม่ retry ไม่มี
+mirror/VPN (ดู `docs/evidence/g1-acquire-from-url-blocked.log`)
+
+`thaivia acquire --from-local-file` → `build` → `audit` → `verify` รัน
+สำเร็จครบทุกขั้นบน synthetic fixture จริง (exit 0 ทุกคำสั่ง) ดู
+`docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log`
+MapPack ที่ผลิตมี `provenance.synthetic: true` และ `synthetic_notice`
+ชัดเจน ไม่มีทางเข้าใจผิดว่าเป็น pilot pack จริง
+
+Determinism: รัน `thaivia build` สองครั้งอิสระ (ห่างกัน >1 วินาที) จาก
+source+settings เดิม ได้ `content_hash` เดียวกันเป๊ะ เปลี่ยน
+`context_buffer_m` แล้ว `settings_hash` เปลี่ยนตาม (ดู
+`docs/evidence/g1-determinism-two-runs.log`)
+
+`thaivia doctor` เปลี่ยนเป็น default = cached reachability (ไม่ยิง
+network ซ้ำ), `--probe-network` เพื่อ live-probe ตามเดิม
+
+### สิ่งที่ยัง not_run / blocked
+
+- **ยังไม่มีการ import แผนที่จริง** — G1-10 (real
+  `docs/data/pilot-audit.md` สำหรับ `th-bkk-pilot-001`) ยัง `blocked`
+  เพราะทุก OSM endpoint ที่อนุญาตยังถูกบล็อกโดย organization egress
+  policy (เหมือน G0 เป๊ะ ดู ADR-0003) `docs/data/pilot-audit.md`
+  ตัวจริงยังคง `status: blocked, not_measured` ทุกฟิลด์ตามเดิม — sample
+  ผลลัพธ์จาก synthetic fixture ถูกเก็บแยกไว้ที่
+  `docs/evidence/g1-synthetic-e2e-audit-sample.md` เท่านั้น ไม่ทับของจริง
+- G2 (Unity viewer) — ยัง not_run เหมือน G0 เพราะไม่มี Unity Editor ใน
+  environment นี้ (ดู ADR-0002) ไม่ได้แตะในรอบนี้
+- `dotnet test` บน pure C# core — ยัง not_run เหมือน G0 (W3-01 ยัง
+  `pending`, out of scope ของรอบนี้)
+
+### แผนที่จริงนำเข้าแล้วหรือยัง
+
+**ยังไม่ได้นำเข้า** เหตุผลเดิมกับ G0 ทุกประการ (ดู ADR-0003) — สิ่งที่
+เปลี่ยนในรอบนี้คือ pipeline ที่จะรับข้อมูลจริงตอนปลดบล็อกนั้น
+**implement เสร็จและ test ครบแล้ว** (ไม่ใช่ stub อีกต่อไป) เมื่อมนุษย์วาง
+ไฟล์ `.osm.pbf`/`.osm.xml` ที่มีสิทธิ์ใช้ไว้ที่ `data/cache/` แล้วรัน
+`thaivia acquire --from-local-file <path> && thaivia build && thaivia
+audit --pack <path>` จะได้ MapPack และ audit จริงทันที ไม่ต้องแก้โค้ด
+เพิ่ม
+
+### สถานะ Android/iOS/phone/tablet
+
+ไม่เปลี่ยนจาก G0 — ยัง `not_run` ทุกแถว (ไม่ได้แตะ G2 ในรอบนี้)
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน ADR-0003 ทุกประการ: allowlist `download.geofabrik.de` (หรือ
+endpoint ที่เลือก) **หรือ** วางไฟล์ snapshot ที่มีสิทธิ์ใช้ไว้ที่
+`data/cache/th-bkk-pilot-001-source.osm.pbf` (ชื่อไฟล์ไม่จำเป็นต้องตรง
+เป๊ะ — `thaivia acquire --from-local-file <path จริง>` จะจัดการ hash/lock
+เอง) แล้วรัน `thaivia acquire --from-local-file <path> && thaivia build
+&& thaivia audit --pack <path จาก build> && thaivia verify --pack <path>`
+
+### Next dependency-ready tasks
+
+- G1-10 (real audit) — dependency-ready ทันทีที่มีไฟล์ OSM จริงที่ขอบ
+  bbox ของ `configs/pilot-area.json`
+- G2-01 (Unity bootstrap) — ยังรอ Unity Editor เหมือนเดิม
+- W3-01 (pure C# core) — ยัง dependency-ready ไม่เปลี่ยนจาก G0
+
 ## Session 1 — 2026-09-20 (G0 Bootstrap)
 
 ### Task IDs และไฟล์ที่เปลี่ยน

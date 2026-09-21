@@ -8,6 +8,14 @@
 `thaivia build` ผลิต MapPack ได้ ตอนนี้ทุกค่าที่ต้องวัดถูกทำเครื่องหมาย
 `not_measured` อย่างตรงไปตรงมา **ไม่มีการเดาหรือเติมตัวเลขใดๆ**
 
+**อัปเดต 2026-09-21 (G1)**: `thaivia acquire`/`build`/`audit`/`verify`
+ทั้งหมด implement และ test เสร็จแล้ว (ดู `docs/progress.md` session 2,
+`docs/evidence/g1-*.log`) พร้อมสร้างเอกสารนี้ใหม่จริงทันทีที่มีไฟล์ OSM
+จริง — **บล็อกอยู่ที่ data source เท่านั้น ไม่ใช่โค้ด** ดู
+`docs/decisions/0003-osm-source-acquisition-blocked.md` ตัวอย่างผลลัพธ์
+จาก synthetic fixture (ไม่ใช่ของจริง ห้ามใช้แทนหน้านี้) อยู่ที่
+`docs/evidence/g1-synthetic-e2e-audit-sample.md`
+
 ## เหตุผลที่ crop นี้ยังใช้ทดสอบไม่ได้
 
 ไม่สามารถดึงข้อมูล OSM จริงได้ เพราะทุก endpoint ที่อนุญาต
