@@ -35,6 +35,25 @@ public sealed class GatewayFlow
         IsOpen = isOpen;
     }
 
+    /// <summary>Restore constructor -- used only by save/load, to resume
+    /// exactly at a prior Generated/Completed/Pending state rather than
+    /// re-deriving it (which would be impossible: those counts are
+    /// PlayerDelta/simulation-layer history, not something re-derivable
+    /// from GeographyBase).</summary>
+    public GatewayFlow(
+        long gatewayNodeId, int inboundCapacityPerTick, int outboundCapacityPerTick, bool isOpen,
+        long generatedOutbound, long completedOutbound, long pendingOutbound,
+        long generatedInbound, long completedInbound, long pendingInbound)
+        : this(gatewayNodeId, inboundCapacityPerTick, outboundCapacityPerTick, isOpen)
+    {
+        GeneratedOutbound = generatedOutbound;
+        CompletedOutbound = completedOutbound;
+        PendingOutbound = pendingOutbound;
+        GeneratedInbound = generatedInbound;
+        CompletedInbound = completedInbound;
+        PendingInbound = pendingInbound;
+    }
+
     public long GatewayNodeId { get; }
     public int InboundCapacityPerTick { get; }
     public int OutboundCapacityPerTick { get; }

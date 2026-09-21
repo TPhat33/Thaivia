@@ -73,4 +73,20 @@ public sealed class SignalIntersectionSimulator
 
     public double AverageQueueA => TicksSimulated == 0 ? 0 : (double)CumulativeQueueTicksA / TicksSimulated;
     public double AverageQueueB => TicksSimulated == 0 ? 0 : (double)CumulativeQueueTicksB / TicksSimulated;
+
+    /// <summary>Used only by save/load restore: overwrites every mutable
+    /// field with an exact prior snapshot (see
+    /// <see cref="Signals.SignalInstance"/>), so a restored simulator
+    /// continues exactly where the save was taken rather than from a fresh
+    /// plan.AllocateGreenTicks(0, 0) starting point.</summary>
+    internal void LoadState(long queueA, long queueB, int currentGreenTicksA, int currentGreenTicksB, long cumulativeQueueTicksA, long cumulativeQueueTicksB, long ticksSimulated)
+    {
+        QueueA = queueA;
+        QueueB = queueB;
+        CurrentGreenTicksA = currentGreenTicksA;
+        CurrentGreenTicksB = currentGreenTicksB;
+        CumulativeQueueTicksA = cumulativeQueueTicksA;
+        CumulativeQueueTicksB = cumulativeQueueTicksB;
+        TicksSimulated = ticksSimulated;
+    }
 }

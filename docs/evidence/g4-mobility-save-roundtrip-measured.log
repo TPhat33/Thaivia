@@ -1,0 +1,23 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.30]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.36]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.37]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:00.49]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.Mobility.MobilitySaveRoundTripTests.AllG4MobilityState_SurvivesASaveRestoreRoundTrip_FieldByField [78 ms]
+  Passed Thaivia.Core.Tests.Simulation.Mobility.MobilitySaveRoundTripTests.TwoWorlds_SameSeedSameMobilityCommands_ProduceIdenticalStructuralHash [< 1 ms]
+
+Test Run Successful.
+Total tests: 2
+     Passed: 2
+ Total time: 1.0219 Seconds

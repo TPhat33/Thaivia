@@ -11,6 +11,12 @@ using Thaivia.Core.Simulation.Archetypes;
 using Thaivia.Core.Simulation.Buildings;
 using Thaivia.Core.Simulation.Cohorts;
 using Thaivia.Core.Simulation.Economy;
+using Thaivia.Core.Simulation.Mobility.Gateways;
+using Thaivia.Core.Simulation.Mobility.Incidents;
+using Thaivia.Core.Simulation.Mobility.Queues;
+using Thaivia.Core.Simulation.Mobility.RoadWorks;
+using Thaivia.Core.Simulation.Mobility.Signals;
+using Thaivia.Core.Simulation.Mobility.Transit;
 using Thaivia.Core.Simulation.Noise;
 using Thaivia.Core.Simulation.Planning;
 using Thaivia.Core.Simulation.RandomStreams;
@@ -44,6 +50,18 @@ public sealed class WorldState
     private readonly List<VacatedLot> _vacatedLots = new();
     private readonly HashSet<long> _roadNodeIds;
 
+    // --- G4 mobility state (network queues, gateways, road works, buses,
+    // signals, incidents) -- see docs/decisions/0017..0020. Everything
+    // here is simulation/PlayerDelta-layer state (never GeographyBase),
+    // exposed for direct mutation the same way Clock/RandomStreams/Ledger
+    // already are on this type (see class doc comment).
+    private readonly Dictionary<long, GatewayFlow> _gatewayFlows;
+    private readonly List<RoadWorksZone> _roadWorksZones = new();
+    private readonly List<BusRoute> _busRoutes = new();
+    private readonly Dictionary<string, long> _busRouteCumulativeRidership = new();
+    private readonly List<SignalInstance> _signals = new();
+    private readonly List<IncidentSite> _incidentSites = new();
+
     /// <summary>Normal construction: seeds cohorts/buildings fresh from
     /// GeographyBase + ScenarioConfig (SimulationInitialization-layer
     /// data; see ScenarioConfig's doc comment for why the config, not
@@ -63,6 +81,9 @@ public sealed class WorldState
 
         _roadNodeIds = roadGraph.Nodes.Select(n => n.NodeId).ToHashSet();
         (_buildingStates, _cohorts) = SeedFromGeography(geographyBase, roadGraph, scenario, RandomStreams);
+
+        LinkQueues = new LinkQueueSimulator();
+        _gatewayFlows = BuildGatewayFlowsFromRoadGraph(roadGraph);
     }
 
     /// <summary>Restore construction: used only by
@@ -119,6 +140,43 @@ public sealed class WorldState
         {
             _vacatedLots.Add(new VacatedLot(v.BuildingSourceId, v.OldLocalX, v.OldLocalZ, v.ProjectId));
         }
+
+        var (linkQueueLengths, linkQueueCompleted, linkQueueArrived) = SplitLinkQueues(save.LinkQueues);
+        LinkQueues = LinkQueueSimulator.Restore(linkQueueLengths, linkQueueCompleted, linkQueueArrived);
+
+        _gatewayFlows = new Dictionary<long, GatewayFlow>();
+        foreach (var g in save.GatewayFlows)
+        {
+            _gatewayFlows[g.GatewayNodeId] = new GatewayFlow(
+                g.GatewayNodeId, g.InboundCapacityPerTick, g.OutboundCapacityPerTick, g.IsOpen,
+                g.GeneratedOutbound, g.CompletedOutbound, g.PendingOutbound,
+                g.GeneratedInbound, g.CompletedInbound, g.PendingInbound);
+        }
+
+        foreach (var rw in save.RoadWorksZones)
+        {
+            _roadWorksZones.Add(new RoadWorksZone(rw.Id, rw.WayId, rw.StartTick, rw.DurationTicks, rw.CapacityMultiplierDuringConstruction, rw.ProjectId));
+        }
+
+        foreach (var b in save.BusRoutes)
+        {
+            _busRoutes.Add(new BusRoute(b.Id, b.StopNodeIds, b.DwellTicksPerStop, b.VehicleCount, b.CapacityPerVehicle));
+            _busRouteCumulativeRidership[b.Id] = b.CumulativeRidership;
+        }
+
+        foreach (var s in save.Signals)
+        {
+            _signals.Add(new SignalInstance(
+                s.Id, s.NodeId, Enum.Parse<SignalPlanKind>(s.Kind), s.CycleTicks, s.ConfigValue, s.DischargeRatePerGreenTick,
+                s.QueueA, s.QueueB, s.CurrentGreenTicksA, s.CurrentGreenTicksB, s.CumulativeQueueTicksA, s.CumulativeQueueTicksB, s.TicksSimulated));
+        }
+
+        foreach (var inc in save.IncidentSites)
+        {
+            _incidentSites.Add(new IncidentSite(
+                inc.SiteId, Enum.Parse<IncidentStrand>(inc.Strand), Enum.Parse<IncidentPhase>(inc.Phase),
+                inc.TicksInPhase, inc.WarningsIssued, inc.IncidentsTriggered, inc.LastSeverity));
+        }
     }
 
     public GeographyBase GeographyBase { get; }
@@ -143,6 +201,38 @@ public sealed class WorldState
     public IReadOnlyList<PlannedRoadSegment> PlannedRoadSegments => _plannedRoadSegments;
     public IReadOnlyList<VacatedLot> VacatedLots => _vacatedLots;
     public IReadOnlySet<long> RoadNodeIds => _roadNodeIds;
+
+    // --- G4 mobility state: exposed for direct mutation, same as
+    // Clock/RandomStreams (none of these carry a budget/transactional
+    // concern the way MoneyLedger's Reserve/Charge does, so there is no
+    // need to funnel them through PlanningEngine).
+    public LinkQueueSimulator LinkQueues { get; }
+    public IReadOnlyDictionary<long, GatewayFlow> GatewayFlows => _gatewayFlows;
+    public IReadOnlyList<RoadWorksZone> RoadWorksZones => _roadWorksZones;
+    public IReadOnlyList<BusRoute> BusRoutes => _busRoutes;
+    public IReadOnlyList<SignalInstance> Signals => _signals;
+    public IReadOnlyList<IncidentSite> IncidentSites => _incidentSites;
+
+    public void AddRoadWorksZone(RoadWorksZone zone) => _roadWorksZones.Add(zone);
+    public void AddBusRoute(BusRoute route) => _busRoutes.Add(route);
+    public void AddSignal(SignalInstance signal) => _signals.Add(signal);
+    public void AddIncidentSite(IncidentSite site) => _incidentSites.Add(site);
+
+    public long BusRidershipOf(string routeId) => _busRouteCumulativeRidership.TryGetValue(routeId, out var v) ? v : 0;
+
+    /// <summary>Records ridership boarded this tick for a route (see
+    /// <see cref="Transit.BusRidership.AssignRidership"/>) -- accumulates,
+    /// never replaces, so this is safe to call once per tick per
+    /// route.</summary>
+    public void RecordBusRidership(string routeId, long boarded)
+    {
+        if (boarded < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(boarded));
+        }
+
+        _busRouteCumulativeRidership[routeId] = BusRidershipOf(routeId) + boarded;
+    }
 
     public long TotalPopulation => _cohorts.Values.Sum(c => c.PopulationCount);
     public long TotalJobs => _buildingStates.Values.Sum(b => (long)b.JobsCount);
@@ -326,6 +416,55 @@ public sealed class WorldState
                 .Append(v.BuildingSourceId).Append(',').Append(v.OldLocalX).Append(',').Append(v.OldLocalZ).Append(';');
         }
 
+        // --- G4 mobility state: every field the same commands could ever
+        // change must be represented here, or two worlds built from the
+        // same seed + same commands could hash identically while actually
+        // differing in mobility state (see determinism tests).
+        foreach (var g in _gatewayFlows.Values.OrderBy(g => g.GatewayNodeId))
+        {
+            sb.Append("gw.").Append(g.GatewayNodeId).Append('=')
+                .Append(g.IsOpen).Append(',').Append(g.GeneratedOutbound).Append(',').Append(g.CompletedOutbound).Append(',').Append(g.PendingOutbound).Append(',')
+                .Append(g.GeneratedInbound).Append(',').Append(g.CompletedInbound).Append(',').Append(g.PendingInbound).Append(';');
+        }
+
+        var linkQueueLengths = LinkQueues.QueueLengths;
+        var linkQueueCompleted = LinkQueues.TotalCompleted;
+        var linkQueueArrived = LinkQueues.TotalArrived;
+        foreach (var key in linkQueueLengths.Keys.OrderBy(k => k.WayId).ThenBy(k => k.Forward))
+        {
+            sb.Append("lq.").Append(key.WayId).Append(key.Forward ? 'F' : 'R').Append('=')
+                .Append(linkQueueLengths[key]).Append(',')
+                .Append(linkQueueCompleted.TryGetValue(key, out var completed) ? completed : 0).Append(',')
+                .Append(linkQueueArrived.TryGetValue(key, out var arrived) ? arrived : 0).Append(';');
+        }
+
+        foreach (var z in _roadWorksZones.OrderBy(z => z.Id, StringComparer.Ordinal))
+        {
+            sb.Append("rw.").Append(z.Id).Append('=')
+                .Append(z.WayId).Append(',').Append(z.StartTick).Append(',').Append(z.DurationTicks).Append(',').Append(z.CapacityMultiplierDuringConstruction).Append(';');
+        }
+
+        foreach (var route in _busRoutes.OrderBy(r => r.Id, StringComparer.Ordinal))
+        {
+            sb.Append("bus.").Append(route.Id).Append('=').Append(BusRidershipOf(route.Id)).Append(';');
+        }
+
+        foreach (var sig in _signals.OrderBy(s => s.Id, StringComparer.Ordinal))
+        {
+            sb.Append("sig.").Append(sig.Id).Append('=')
+                .Append(sig.Simulator.QueueA).Append(',').Append(sig.Simulator.QueueB).Append(',')
+                .Append(sig.Simulator.CurrentGreenTicksA).Append(',').Append(sig.Simulator.CurrentGreenTicksB).Append(',')
+                .Append(sig.Simulator.CumulativeQueueTicksA).Append(',').Append(sig.Simulator.CumulativeQueueTicksB).Append(',')
+                .Append(sig.Simulator.TicksSimulated).Append(';');
+        }
+
+        foreach (var site in _incidentSites.OrderBy(i => i.SiteId, StringComparer.Ordinal).ThenBy(i => i.Strand.ToString(), StringComparer.Ordinal))
+        {
+            sb.Append("inc.").Append(site.SiteId).Append('.').Append(site.Strand).Append('=')
+                .Append(site.Phase).Append(',').Append(site.TicksInPhase).Append(',').Append(site.WarningsIssued).Append(',')
+                .Append(site.IncidentsTriggered).Append(',').Append(site.LastSeverity).Append(';');
+        }
+
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash);
@@ -357,7 +496,71 @@ public sealed class WorldState
             _buildingStates.Values.Select(b => new SavedBuilding(b.SourceId, b.Archetype.ToString(), b.LocalX, b.LocalZ, b.NearestRoadNodeId, b.JobsCount, b.Relocated)).ToList(),
             _projects.Values.Select(p => new SavedProject(p.Id, p.Kind.ToString(), p.LedgerKind.ToString(), p.FixedCostThb, p.MilestoneAmounts.ToList(), p.PaidMilestones, p.TotalPaid, p.Status.ToString())).ToList(),
             _plannedRoadSegments.Select(s => new SavedRoadSegment(s.FromNodeId, s.ToNodeId, s.LengthMeters, s.ProjectId)).ToList(),
-            _vacatedLots.Select(v => new SavedVacatedLot(v.BuildingSourceId, v.OldLocalX, v.OldLocalZ, v.ProjectId)).ToList());
+            _vacatedLots.Select(v => new SavedVacatedLot(v.BuildingSourceId, v.OldLocalX, v.OldLocalZ, v.ProjectId)).ToList(),
+            CaptureLinkQueues(),
+            _gatewayFlows.Values.Select(g => new SavedGatewayFlow(
+                g.GatewayNodeId, g.InboundCapacityPerTick, g.OutboundCapacityPerTick, g.IsOpen,
+                g.GeneratedOutbound, g.CompletedOutbound, g.PendingOutbound,
+                g.GeneratedInbound, g.CompletedInbound, g.PendingInbound)).ToList(),
+            _roadWorksZones.Select(z => new SavedRoadWorksZone(z.Id, z.WayId, z.StartTick, z.DurationTicks, z.CapacityMultiplierDuringConstruction, z.ProjectId)).ToList(),
+            _busRoutes.Select(b => new SavedBusRoute(b.Id, b.StopNodeIds, b.DwellTicksPerStop, b.VehicleCount, b.CapacityPerVehicle, BusRidershipOf(b.Id))).ToList(),
+            _signals.Select(s => new SavedSignal(
+                s.Id, s.NodeId, s.Kind.ToString(), s.CycleTicks, s.ConfigValue, s.DischargeRatePerGreenTick,
+                s.Simulator.QueueA, s.Simulator.QueueB, s.Simulator.CurrentGreenTicksA, s.Simulator.CurrentGreenTicksB,
+                s.Simulator.CumulativeQueueTicksA, s.Simulator.CumulativeQueueTicksB, s.Simulator.TicksSimulated)).ToList(),
+            _incidentSites.Select(i => new SavedIncidentSite(i.SiteId, i.Strand.ToString(), i.Phase.ToString(), i.TicksInPhase, i.WarningsIssued, i.IncidentsTriggered, i.LastSeverity)).ToList());
+
+    private List<SavedLinkQueue> CaptureLinkQueues()
+    {
+        var lengths = LinkQueues.QueueLengths;
+        var completed = LinkQueues.TotalCompleted;
+        var arrived = LinkQueues.TotalArrived;
+        return lengths.Keys.Select(k => new SavedLinkQueue(
+            k.WayId, k.Forward,
+            lengths[k],
+            completed.TryGetValue(k, out var c) ? c : 0,
+            arrived.TryGetValue(k, out var a) ? a : 0)).ToList();
+    }
+
+    private static (Dictionary<LinkKey, long> Lengths, Dictionary<LinkKey, long> Completed, Dictionary<LinkKey, long> Arrived) SplitLinkQueues(IReadOnlyList<SavedLinkQueue> saved)
+    {
+        var lengths = new Dictionary<LinkKey, long>();
+        var completed = new Dictionary<LinkKey, long>();
+        var arrived = new Dictionary<LinkKey, long>();
+        foreach (var q in saved)
+        {
+            var key = new LinkKey(q.WayId, q.Forward);
+            lengths[key] = q.QueueLength;
+            completed[key] = q.TotalCompleted;
+            arrived[key] = q.TotalArrived;
+        }
+
+        return (lengths, completed, arrived);
+    }
+
+    /// <summary>Builds one <see cref="GatewayFlow"/> per
+    /// <see cref="RoadGraph.Gateways"/> entry, deriving per-tick capacity
+    /// from the MapPack's `external_capacity_veh_per_hour`
+    /// simulation_assumption field (see <see cref="Gateway"/>'s doc
+    /// comment -- it is already documented as never a source fact). Every
+    /// gateway starts open.</summary>
+    private static Dictionary<long, GatewayFlow> BuildGatewayFlowsFromRoadGraph(RoadGraph roadGraph)
+    {
+        var flows = new Dictionary<long, GatewayFlow>();
+        foreach (var gateway in roadGraph.Gateways)
+        {
+            var capacityPerTick = VehPerHourToPerTick(gateway.ExternalCapacityVehPerHour);
+            flows[gateway.NodeId] = new GatewayFlow(gateway.NodeId, capacityPerTick, capacityPerTick);
+        }
+
+        return flows;
+    }
+
+    private static int VehPerHourToPerTick(int vehPerHour)
+    {
+        var ticksPerHour = SimTime.TickConfig.TicksPerSecond * 3600.0;
+        return Math.Max(0, (int)Math.Round(vehPerHour / ticksPerHour));
+    }
 
     private static (Dictionary<long, BuildingSimState>, Dictionary<string, HouseholdCohort>) SeedFromGeography(
         GeographyBase geographyBase, RoadGraph roadGraph, ScenarioConfig scenario, NamedRandomStreams randomStreams)

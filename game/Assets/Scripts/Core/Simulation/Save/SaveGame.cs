@@ -35,7 +35,13 @@ public sealed class SaveGame
         IReadOnlyList<SavedBuilding> buildings,
         IReadOnlyList<SavedProject> projects,
         IReadOnlyList<SavedRoadSegment> plannedRoadSegments,
-        IReadOnlyList<SavedVacatedLot> vacatedLots)
+        IReadOnlyList<SavedVacatedLot> vacatedLots,
+        IReadOnlyList<SavedLinkQueue> linkQueues,
+        IReadOnlyList<SavedGatewayFlow> gatewayFlows,
+        IReadOnlyList<SavedRoadWorksZone> roadWorksZones,
+        IReadOnlyList<SavedBusRoute> busRoutes,
+        IReadOnlyList<SavedSignal> signals,
+        IReadOnlyList<SavedIncidentSite> incidentSites)
     {
         MapId = mapId;
         MapContentHash = mapContentHash;
@@ -53,6 +59,12 @@ public sealed class SaveGame
         Projects = projects;
         PlannedRoadSegments = plannedRoadSegments;
         VacatedLots = vacatedLots;
+        LinkQueues = linkQueues;
+        GatewayFlows = gatewayFlows;
+        RoadWorksZones = roadWorksZones;
+        BusRoutes = busRoutes;
+        Signals = signals;
+        IncidentSites = incidentSites;
     }
 
     public string MapId { get; }
@@ -71,4 +83,13 @@ public sealed class SaveGame
     public IReadOnlyList<SavedProject> Projects { get; }
     public IReadOnlyList<SavedRoadSegment> PlannedRoadSegments { get; }
     public IReadOnlyList<SavedVacatedLot> VacatedLots { get; }
+
+    // --- G4 mobility state (spec §13 / AGENTS.md rule 5: save must cover
+    // queues/routes/signal state/incident state too) ---
+    public IReadOnlyList<SavedLinkQueue> LinkQueues { get; }
+    public IReadOnlyList<SavedGatewayFlow> GatewayFlows { get; }
+    public IReadOnlyList<SavedRoadWorksZone> RoadWorksZones { get; }
+    public IReadOnlyList<SavedBusRoute> BusRoutes { get; }
+    public IReadOnlyList<SavedSignal> Signals { get; }
+    public IReadOnlyList<SavedIncidentSite> IncidentSites { get; }
 }

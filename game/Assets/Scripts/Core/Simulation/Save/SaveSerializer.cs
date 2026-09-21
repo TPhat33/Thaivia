@@ -149,6 +149,113 @@ public static class SaveSerializer
 
             writer.WriteEndArray();
 
+            writer.WriteStartArray("link_queues");
+            foreach (var q in save.LinkQueues)
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("way_id", q.WayId);
+                writer.WriteBoolean("forward", q.Forward);
+                writer.WriteNumber("queue_length", q.QueueLength);
+                writer.WriteNumber("total_completed", q.TotalCompleted);
+                writer.WriteNumber("total_arrived", q.TotalArrived);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("gateway_flows");
+            foreach (var g in save.GatewayFlows)
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("gateway_node_id", g.GatewayNodeId);
+                writer.WriteNumber("inbound_capacity_per_tick", g.InboundCapacityPerTick);
+                writer.WriteNumber("outbound_capacity_per_tick", g.OutboundCapacityPerTick);
+                writer.WriteBoolean("is_open", g.IsOpen);
+                writer.WriteNumber("generated_outbound", g.GeneratedOutbound);
+                writer.WriteNumber("completed_outbound", g.CompletedOutbound);
+                writer.WriteNumber("pending_outbound", g.PendingOutbound);
+                writer.WriteNumber("generated_inbound", g.GeneratedInbound);
+                writer.WriteNumber("completed_inbound", g.CompletedInbound);
+                writer.WriteNumber("pending_inbound", g.PendingInbound);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("road_works_zones");
+            foreach (var rw in save.RoadWorksZones)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", rw.Id);
+                writer.WriteNumber("way_id", rw.WayId);
+                writer.WriteNumber("start_tick", rw.StartTick);
+                writer.WriteNumber("duration_ticks", rw.DurationTicks);
+                writer.WriteNumber("capacity_multiplier_during_construction", rw.CapacityMultiplierDuringConstruction);
+                writer.WriteString("project_id", rw.ProjectId);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("bus_routes");
+            foreach (var b in save.BusRoutes)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", b.Id);
+                writer.WriteStartArray("stop_node_ids");
+                foreach (var stop in b.StopNodeIds)
+                {
+                    writer.WriteNumberValue(stop);
+                }
+
+                writer.WriteEndArray();
+                writer.WriteNumber("dwell_ticks_per_stop", b.DwellTicksPerStop);
+                writer.WriteNumber("vehicle_count", b.VehicleCount);
+                writer.WriteNumber("capacity_per_vehicle", b.CapacityPerVehicle);
+                writer.WriteNumber("cumulative_ridership", b.CumulativeRidership);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("signals");
+            foreach (var s in save.Signals)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", s.Id);
+                writer.WriteNumber("node_id", s.NodeId);
+                writer.WriteString("kind", s.Kind);
+                writer.WriteNumber("cycle_ticks", s.CycleTicks);
+                writer.WriteNumber("config_value", s.ConfigValue);
+                writer.WriteNumber("discharge_rate_per_green_tick", s.DischargeRatePerGreenTick);
+                writer.WriteNumber("queue_a", s.QueueA);
+                writer.WriteNumber("queue_b", s.QueueB);
+                writer.WriteNumber("current_green_ticks_a", s.CurrentGreenTicksA);
+                writer.WriteNumber("current_green_ticks_b", s.CurrentGreenTicksB);
+                writer.WriteNumber("cumulative_queue_ticks_a", s.CumulativeQueueTicksA);
+                writer.WriteNumber("cumulative_queue_ticks_b", s.CumulativeQueueTicksB);
+                writer.WriteNumber("ticks_simulated", s.TicksSimulated);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("incident_sites");
+            foreach (var inc in save.IncidentSites)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("site_id", inc.SiteId);
+                writer.WriteString("strand", inc.Strand);
+                writer.WriteString("phase", inc.Phase);
+                writer.WriteNumber("ticks_in_phase", inc.TicksInPhase);
+                writer.WriteNumber("warnings_issued", inc.WarningsIssued);
+                writer.WriteNumber("incidents_triggered", inc.IncidentsTriggered);
+                writer.WriteNumber("last_severity", inc.LastSeverity);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
             writer.WriteEndObject();
         }
 
@@ -236,6 +343,79 @@ public static class SaveSerializer
                 JsonRequire.Double(item, "old_local_z", itemPath),
                 JsonRequire.String(item, "project_id", itemPath)));
 
+        var linkQueues = JsonRequire.MapArray(JsonRequire.Array(root, "link_queues", path), "$.link_queues", (item, itemPath, _) =>
+            new SavedLinkQueue(
+                JsonRequire.Int64(item, "way_id", itemPath),
+                JsonRequire.Bool(item, "forward", itemPath),
+                JsonRequire.Int64(item, "queue_length", itemPath),
+                JsonRequire.Int64(item, "total_completed", itemPath),
+                JsonRequire.Int64(item, "total_arrived", itemPath)));
+
+        var gatewayFlows = JsonRequire.MapArray(JsonRequire.Array(root, "gateway_flows", path), "$.gateway_flows", (item, itemPath, _) =>
+            new SavedGatewayFlow(
+                JsonRequire.Int64(item, "gateway_node_id", itemPath),
+                JsonRequire.Int32(item, "inbound_capacity_per_tick", itemPath),
+                JsonRequire.Int32(item, "outbound_capacity_per_tick", itemPath),
+                JsonRequire.Bool(item, "is_open", itemPath),
+                JsonRequire.Int64(item, "generated_outbound", itemPath),
+                JsonRequire.Int64(item, "completed_outbound", itemPath),
+                JsonRequire.Int64(item, "pending_outbound", itemPath),
+                JsonRequire.Int64(item, "generated_inbound", itemPath),
+                JsonRequire.Int64(item, "completed_inbound", itemPath),
+                JsonRequire.Int64(item, "pending_inbound", itemPath)));
+
+        var roadWorksZones = JsonRequire.MapArray(JsonRequire.Array(root, "road_works_zones", path), "$.road_works_zones", (item, itemPath, _) =>
+            new SavedRoadWorksZone(
+                JsonRequire.String(item, "id", itemPath),
+                JsonRequire.Int64(item, "way_id", itemPath),
+                JsonRequire.Int64(item, "start_tick", itemPath),
+                JsonRequire.Int64(item, "duration_ticks", itemPath),
+                JsonRequire.Double(item, "capacity_multiplier_during_construction", itemPath),
+                JsonRequire.String(item, "project_id", itemPath)));
+
+        var busRoutes = JsonRequire.MapArray(JsonRequire.Array(root, "bus_routes", path), "$.bus_routes", (item, itemPath, _) =>
+        {
+            var stops = new List<long>();
+            foreach (var stop in JsonRequire.Array(item, "stop_node_ids", itemPath).EnumerateArray())
+            {
+                stops.Add(stop.GetInt64());
+            }
+
+            return new SavedBusRoute(
+                JsonRequire.String(item, "id", itemPath),
+                stops,
+                JsonRequire.Int32(item, "dwell_ticks_per_stop", itemPath),
+                JsonRequire.Int32(item, "vehicle_count", itemPath),
+                JsonRequire.Int32(item, "capacity_per_vehicle", itemPath),
+                JsonRequire.Int64(item, "cumulative_ridership", itemPath));
+        });
+
+        var signals = JsonRequire.MapArray(JsonRequire.Array(root, "signals", path), "$.signals", (item, itemPath, _) =>
+            new SavedSignal(
+                JsonRequire.String(item, "id", itemPath),
+                JsonRequire.Int64(item, "node_id", itemPath),
+                JsonRequire.String(item, "kind", itemPath),
+                JsonRequire.Int64(item, "cycle_ticks", itemPath),
+                JsonRequire.Int32(item, "config_value", itemPath),
+                JsonRequire.Int32(item, "discharge_rate_per_green_tick", itemPath),
+                JsonRequire.Int64(item, "queue_a", itemPath),
+                JsonRequire.Int64(item, "queue_b", itemPath),
+                JsonRequire.Int32(item, "current_green_ticks_a", itemPath),
+                JsonRequire.Int32(item, "current_green_ticks_b", itemPath),
+                JsonRequire.Int64(item, "cumulative_queue_ticks_a", itemPath),
+                JsonRequire.Int64(item, "cumulative_queue_ticks_b", itemPath),
+                JsonRequire.Int64(item, "ticks_simulated", itemPath)));
+
+        var incidentSites = JsonRequire.MapArray(JsonRequire.Array(root, "incident_sites", path), "$.incident_sites", (item, itemPath, _) =>
+            new SavedIncidentSite(
+                JsonRequire.String(item, "site_id", itemPath),
+                JsonRequire.String(item, "strand", itemPath),
+                JsonRequire.String(item, "phase", itemPath),
+                JsonRequire.Int64(item, "ticks_in_phase", itemPath),
+                JsonRequire.Int64(item, "warnings_issued", itemPath),
+                JsonRequire.Int64(item, "incidents_triggered", itemPath),
+                JsonRequire.Int32(item, "last_severity", itemPath)));
+
         return new SaveGame(
             JsonRequire.String(root, "map_id", path),
             JsonRequire.String(root, "map_content_hash", path),
@@ -252,6 +432,12 @@ public static class SaveSerializer
             buildings,
             projects,
             roadSegments,
-            vacatedLots);
+            vacatedLots,
+            linkQueues,
+            gatewayFlows,
+            roadWorksZones,
+            busRoutes,
+            signals,
+            incidentSites);
     }
 }
