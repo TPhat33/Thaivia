@@ -54,6 +54,36 @@ public static class PlanningEngine
         return new ImpactRange(delta, delta - 5, delta + 5, "cohort_access_need_score_delta");
     }
 
+    /// <summary>Same computation as <see cref="EstimateRelocationAccessImpact"/>,
+    /// but returns the reasoning inputs alongside the range (spec §12:
+    /// explainable predictions -- see <see cref="ExplainedImpact"/>). Pure,
+    /// same non-mutating guarantee as the plain Estimate* method.</summary>
+    public static ExplainedImpact ExplainRelocationAccessImpact(WorldState world, long buildingSourceId, double destLocalX, double destLocalZ, long destNearestRoadNodeId)
+    {
+        if (!world.BuildingStates.ContainsKey(buildingSourceId))
+        {
+            throw new ArgumentException($"Unknown building source id {buildingSourceId}.", nameof(buildingSourceId));
+        }
+
+        var currentScore = world.ComputeAccessibilityScore(buildingSourceId);
+        var graph = world.BuildAccessibilityGraph();
+        var nearestJobNode = world.FindNearestJobNode(graph, destNearestRoadNodeId, excludeBuildingSourceId: buildingSourceId);
+        var projectedDistance = nearestJobNode is { } nodeId ? graph.ShortestDistanceMeters(destNearestRoadNodeId, nodeId) : null;
+        var projectedScore = AccessibilityNeed.ComputeScore(projectedDistance);
+        var delta = projectedScore - currentScore;
+
+        var reasoning = new List<ReasoningInput>
+        {
+            new("current_accessibility_score", currentScore, "score_0_100"),
+            new("projected_network_distance_to_nearest_job", projectedDistance ?? double.PositiveInfinity, "m"),
+            new("accessibility_reference_distance", AccessibilityNeed.ReferenceDistanceMeters, "m"),
+            new("projected_accessibility_score", projectedScore, "score_0_100"),
+        };
+
+        var impact = new ImpactRange(delta, delta - 5, delta + 5, "cohort_access_need_score_delta");
+        return new ExplainedImpact(impact, reasoning);
+    }
+
     /// <summary>Pure equivalent of <see cref="EstimateRelocationAccessImpact"/>
     /// for a new road connector draft: projects the access-score delta for
     /// the building nearest <paramref name="fromNodeId"/>, without
@@ -80,6 +110,41 @@ public static class PlanningEngine
         return new ImpactRange(delta, delta - 5, delta + 5, "cohort_access_need_score_delta");
     }
 
+    /// <summary>Same computation as <see cref="EstimateNewRoadAccessImpact"/>,
+    /// with reasoning inputs attached (spec §12) -- see
+    /// <see cref="ExplainRelocationAccessImpact"/>'s doc comment.</summary>
+    public static ExplainedImpact ExplainNewRoadAccessImpact(WorldState world, long fromNodeId, long toNodeId, long evaluateForBuildingSourceId)
+    {
+        if (!world.RoadNodeIds.Contains(fromNodeId) || !world.RoadNodeIds.Contains(toNodeId))
+        {
+            throw new ArgumentException("Both fromNodeId and toNodeId must already exist in the road graph.");
+        }
+
+        var currentScore = world.ComputeAccessibilityScore(evaluateForBuildingSourceId);
+        var length = SegmentLength(world, fromNodeId, toNodeId);
+        var projectedGraph = new AccessibilityGraph(world.RoadGraph, world.PlannedRoadSegments
+            .Append(new PlannedRoadSegment(fromNodeId, toNodeId, length, "estimate-preview"))
+            .ToList());
+
+        var building = world.BuildingStates[evaluateForBuildingSourceId];
+        var nearestJobNode = world.FindNearestJobNode(projectedGraph, building.NearestRoadNodeId, excludeBuildingSourceId: evaluateForBuildingSourceId);
+        var projectedDistance = nearestJobNode is { } nodeId ? projectedGraph.ShortestDistanceMeters(building.NearestRoadNodeId, nodeId) : null;
+        var projectedScore = AccessibilityNeed.ComputeScore(projectedDistance);
+        var delta = projectedScore - currentScore;
+
+        var reasoning = new List<ReasoningInput>
+        {
+            new("current_accessibility_score", currentScore, "score_0_100"),
+            new("new_segment_length", length, "m"),
+            new("projected_network_distance_to_nearest_job", projectedDistance ?? double.PositiveInfinity, "m"),
+            new("accessibility_reference_distance", AccessibilityNeed.ReferenceDistanceMeters, "m"),
+            new("projected_accessibility_score", projectedScore, "score_0_100"),
+        };
+
+        var impact = new ImpactRange(delta, delta - 5, delta + 5, "cohort_access_need_score_delta");
+        return new ExplainedImpact(impact, reasoning);
+    }
+
     /// <summary>Pure: projects a road works zone's effect on its way's
     /// per-tick throughput capacity (definite, from
     /// <see cref="LinkCapacity.BaseCapacityVehPerTick"/> and the proposed
@@ -103,6 +168,30 @@ public static class PlanningEngine
         // not a statistically fitted interval.
         const double band = 1.0;
         return new ImpactRange(delta, delta - band, delta + band, "way_capacity_delta_veh_per_tick");
+    }
+
+    /// <summary>Same computation as
+    /// <see cref="EstimateRoadWorksCapacityImpact"/>, with reasoning
+    /// inputs attached (spec §12).</summary>
+    public static ExplainedImpact ExplainRoadWorksCapacityImpact(WorldState world, long wayId, double capacityMultiplierDuringConstruction)
+    {
+        var edge = world.RoadGraph.Edges.FirstOrDefault(e => e.WayId == wayId)
+            ?? throw new ArgumentException($"Way {wayId} does not exist in the road graph.", nameof(wayId));
+
+        var baseCapacity = LinkCapacity.BaseCapacityVehPerTick(edge);
+        var reducedCapacity = (int)Math.Floor(baseCapacity * capacityMultiplierDuringConstruction);
+        var delta = (double)(reducedCapacity - baseCapacity);
+
+        var reasoning = new List<ReasoningInput>
+        {
+            new("base_capacity", baseCapacity, "veh_per_tick"),
+            new("capacity_multiplier_during_construction", capacityMultiplierDuringConstruction, "ratio"),
+            new("reduced_capacity", reducedCapacity, "veh_per_tick"),
+        };
+
+        const double band = 1.0;
+        var impact = new ImpactRange(delta, delta - band, delta + band, "way_capacity_delta_veh_per_tick");
+        return new ExplainedImpact(impact, reasoning);
     }
 
     public static CommitResult CommitRelocation(WorldState world, BuildingRelocationDraft draft, LedgerAccountKind ledgerKind, IReadOnlyList<long> milestoneAmounts)

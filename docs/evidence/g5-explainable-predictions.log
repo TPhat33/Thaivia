@@ -1,0 +1,34 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.28]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.33]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.34]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:00.47]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.ExplainRelocationAccessImpact_MatchesThePlainEstimate_SameNumberDifferentShape [38 ms]
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.FixedCostAndPredictedImpact_AreDifferentFieldsOnTheDraft_NeverConflated [3 ms]
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.ExplainMethods_DoNotMutateTheWorld [28 ms]
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.ExplainNewRoadAccessImpact_CarriesTheNewSegmentLength_AsAReasoningInput [1 ms]
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.ExplainRelocationAccessImpact_CarriesUncertainty_AndRealReasoningInputs [4 ms]
+  Standard Output Messages:
+ current_accessibility_score = 0 score_0_100
+ projected_network_distance_to_nearest_job = 10 m
+ accessibility_reference_distance = 500 m
+ projected_accessibility_score = 98 score_0_100
+
+
+  Passed Thaivia.Core.Tests.Simulation.ExplainedImpactTests.ExplainRoadWorksCapacityImpact_CarriesBaseAndReducedCapacityAsReasoningInputs [< 1 ms]
+
+Test Run Successful.
+Total tests: 6
+     Passed: 6
+ Total time: 1.0015 Seconds
