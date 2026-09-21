@@ -1,0 +1,43 @@
+$ cd /home/user/Thaivia
+$ ./.venv/bin/thaivia acquire --from-local-file tests/fixtures/synthetic/road_graph_layers.synthetic.osm.xml
+thaivia acquire: local file ingested OK: tests/fixtures/synthetic/road_graph_layers.synthetic.osm.xml
+  sha256=992f9a891df0fa047c2e69a776a2bc22cea0dc808f1209731a7a3125c158479f size_bytes=2786
+  source bytes:  /home/user/Thaivia/data/cache/th-bkk-pilot-001.992f9a891df0fa04.source.osm.xml
+  source lock:   /home/user/Thaivia/data/cache/th-bkk-pilot-001.992f9a891df0fa04.c9af71bb5a7d.sourcelock.json (new_lock=False)
+  canonical pointer: /home/user/Thaivia/data/cache/th-bkk-pilot-001.sourcelock.json
+EXIT=0
+
+$ ./.venv/bin/thaivia build --out /tmp/g2-fixture-gen/road_graph_layers.mappack.json
+thaivia build: MapPack baked OK -> /tmp/g2-fixture-gen/road_graph_layers.mappack.json
+  content_hash=sha256:0944b65c06a667b4c354bbf83b965ea5f0ade024f14802f2131fc5c589164e07
+  synthetic=True
+  retained_counts={'barriers': 0, 'building_parts': 0, 'buildings': 0, 'gateways': 7, 'road_edges': 4, 'road_nodes': 9, 'turn_restrictions_supported': 1, 'water_polygons': 0, 'waterways': 0}
+  rejected_counts={'dropped_features': 0, 'incomplete_relations': 0, 'topology_conflicts': 0, 'unsupported_restrictions': 1}
+  roundtrip_error_m={'max': 0.00646587338858058, 'mean': 0.004100838613902867, 'sample_count': 9}
+  crs_validation_warnings=[]
+EXIT=0
+
+$ ./.venv/bin/thaivia acquire --from-local-file tests/fixtures/synthetic/multipart_building.synthetic.osm.xml
+thaivia acquire: local file ingested OK: tests/fixtures/synthetic/multipart_building.synthetic.osm.xml
+  sha256=718c59e57ae4030fcd4910d06827d63ab1aee00015c5aead9f114462db69137c size_bytes=3112
+  source bytes:  /home/user/Thaivia/data/cache/th-bkk-pilot-001.718c59e57ae4030f.source.osm.xml
+  source lock:   /home/user/Thaivia/data/cache/th-bkk-pilot-001.718c59e57ae4030f.c9af71bb5a7d.sourcelock.json (new_lock=True)
+  canonical pointer: /home/user/Thaivia/data/cache/th-bkk-pilot-001.sourcelock.json
+EXIT=0
+
+$ ./.venv/bin/thaivia build --out /tmp/g2-fixture-gen/multipart_building.mappack.json
+thaivia build: MapPack baked OK -> /tmp/g2-fixture-gen/multipart_building.mappack.json
+  content_hash=sha256:3c89d2813e49182b8a73deabe1b360e219a2cc221e17f40c24ade81c45087f96
+  synthetic=True
+  retained_counts={'barriers': 0, 'building_parts': 1, 'buildings': 1, 'gateways': 0, 'road_edges': 0, 'road_nodes': 0, 'turn_restrictions_supported': 0, 'water_polygons': 0, 'waterways': 0}
+  rejected_counts={'dropped_features': 0, 'incomplete_relations': 0, 'topology_conflicts': 0, 'unsupported_restrictions': 0}
+  roundtrip_error_m={'max': 0.006072779440938622, 'mean': 0.004029350446060275, 'sample_count': 20}
+  crs_validation_warnings=[]
+EXIT=0
+
+Both output files copied verbatim into
+game/Thaivia.Core.Tests/Fixtures/{road_graph_layers,multipart_building}.synthetic.mappack.json
+(11.4KB and 14.8KB respectively -- committed as-is, byte for byte, no
+hand-editing). Both carry payload.provenance.synthetic=true and a
+payload.provenance.synthetic_notice; never to be confused with a real
+pilot pack (none exists yet -- see ADR-0003/docs/data/pilot-audit.md).
