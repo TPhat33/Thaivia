@@ -1,5 +1,163 @@
 # Progress log
 
+## Session 4 — 2026-09-23 (wave 4 / G3 first-playable simulation core)
+
+### Task IDs และไฟล์ที่เปลี่ยน
+
+ทำ `G3-01` ถึง `G3-09` เสร็จ (สถานะ `done` — ดู `TASKS.json` สำหรับ
+acceptance criteria/evidence เต็มของแต่ละ task) `G3-10` (Unity-side
+rendering/UI ของระบบใหม่เหล่านี้) ยัง `blocked` ตามที่ scope ของรอบนี้
+กำหนดไว้ชัดเจน ("simulation core only, pure C#, zero UnityEngine") —
+ไม่ได้แตะ `game/Assets/Scripts/Runtime/` เลยใน session นี้
+
+ไฟล์ใหม่หลัก (ทั้งหมดอยู่ใต้ `game/Assets/Scripts/Core/Simulation/` เว้น
+แต่จะระบุไว้):
+
+- `Simulation/Time/{TickConfig,SimClock}.cs` — fixed logical tick (5Hz
+  constant เดียว), `AdvanceTicks`-only clock, `Resume()` ไม่มี parameter
+  เลย (ไม่มีช่องให้ wall-clock catch-up)
+- `Simulation/RandomStreams/{DeterministicRandom,RandomStreamName,
+  NamedRandomStreams}.cs` — splitmix64 PRNG, stream ละ object แยกกันจริง
+  (Traffic/Incidents/CohortVariation), `HashStep` แยกจาก stream สำหรับ
+  deterministic hash ที่ไม่กิน RNG position (ใช้ทำ archetype assignment)
+- `Simulation/Archetypes/{BuildingArchetype,HourlyActivity,
+  ActivityClockCatalog}.cs` — 8 archetypes, activity clock ต่อชั่วโมง
+  จาก peak-window shape (ไม่ใช่ตาราง magic number 8x24)
+- `Simulation/Cohorts/{HouseholdCohort,CohortNeeds,
+  CohortNeedsCalculator}.cs` — ประชากรเป็น household record,
+  `SampleAgentCount` แยกจาก `PopulationCount` โดยโครงสร้าง
+- `Simulation/Buildings/{BuildingSimState,VacatedLot}.cs` — simulation
+  state ต่ออาคาร, immutable-replace style
+- `Simulation/Noise/NoiseIndex.cs`, `Simulation/Accessibility/
+  {AccessibilityGraph,AccessibilityNeed,PlannedRoadSegment}.cs` — noise
+  0-100 ของเกม, accessibility จาก Dijkstra บน road graph เท่านั้น (ไม่มี
+  radius helper เลยในโค้ดเบส)
+- `Simulation/Economy/{LedgerAccountKind,MoneyLedger}.cs` — เงิน
+  integer ล้วน, reserve/charge แยก operation
+- `Simulation/Planning/{ImpactRange,ProjectKind,ProjectDraft,
+  ProjectStatus,CommittedProject,PlanningEngine}.cs` — draft/estimate/
+  commit/pay-milestone/cancel เต็มรูปแบบ, transactional commit
+- `Simulation/Scenario/ScenarioConfig.cs` — scenario config สำหรับ seed
+  household/jobs (SimulationInitialization layer, สมมติโดยเจตนา)
+- `Simulation/Save/{SaveGame,SavedRecords,SaveSerializer,
+  SaveGameStore,LoadResult}.cs` — save format เต็ม, latest/previous,
+  map-version-mismatch เป็น result type ชัดเจน
+- `WorldState.cs` (แก้ทั้งไฟล์) — ผูกทุกระบบข้างบนเข้าด้วยกัน, เพิ่ม
+  `Revision`, `ComputeStructuralHash()`, `CaptureSave`/`Restore`,
+  `BuildAccessibilityGraph`, `ComputeAccessibilityScore`,
+  `ComputeNoiseIndexAt`, `ComputeCohortNeeds` — ยังคง `AddDelta`/
+  `GeographyBase`/`SimulationInitialization` เป็น get-only เหมือนเดิม
+  ไม่มี method ไหนเขียนกลับเข้า GeographyBase (ImmutabilityTests เดิม
+  ยังผ่านทั้งหมด)
+- `Graph/GameplayTurnPolicy.cs` — ADR ที่ wave 3 ติดค้างไว้:
+  `TurnDecision.Unsupported` ถูกปฏิบัติเหมือน `Denied` (fail-safe) โดย
+  gameplay routing
+- `game/Thaivia.Core.Tests/Simulation/*.cs` (ใหม่ 11 ไฟล์),
+  `game/Thaivia.Core.Tests/GameplayTurnPolicyTests.cs` — test suite เต็ม
+  ของทุกระบบข้างบน (78 test ใหม่)
+- `docs/decisions/0011..0016-*.md` — ADR ของ tick rate, PRNG stream
+  design, ledger model, save format/versioning, accessibility metric,
+  และ ADR ที่ค้างจาก wave 3 (`TurnDecision.Unsupported`)
+- `docs/evidence/g3-*.log`
+
+### สิ่งที่ทำงานจริง (ยืนยันด้วยการรันจริง)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g3-dotnet-build.log`) `dotnet test game/Thaivia.sln` →
+**113 passed** (35 เดิมจาก wave 3 + 78 ใหม่ ไม่มี test เดิมพัง เลยสักตัว
+— `docs/evidence/g3-dotnet-test.log`) `./.venv/bin/pytest -q` (Python
+pipeline) ยัง **67 passed** เหมือนเดิม (session นี้ไม่แตะโค้ด Python เลย
+— `docs/evidence/g3-pytest-still-passing.log`)
+
+Invariant ที่ supervisor ระบุไว้ในโจทย์ ↔ ชื่อ test ที่พิสูจน์:
+
+| Invariant | Test |
+|---|---|
+| Determinism (seed+commands เดิม → hash เดิม) | `WorldStateDeterminismTests.TwoWorlds_SameSeedSameCommands_ProduceIdenticalStructuralHash` |
+| RNG stream independence | `NamedRandomStreamsTests.DrawingFromOneStream_DoesNotShiftAnotherStreamsSequence` |
+| ไม่มี wall-clock catch-up | `SimClockTests.PauseThenResume_AddsZeroTicksOnItsOwn` + `SimClockAndWorldStateSource_ContainNoWallClockRead` (พร้อม control test `Detector_FlagsASyntheticWallClockUsage_ControlCase` ที่พิสูจน์ว่า scanner จับได้จริง ไม่ใช่ no-op) |
+| Estimate ไม่ mutate world | `PlanningEngineTests.Estimate_DoesNotMutateTheWorld_HashAndEveryRngStreamUnchanged` |
+| Confirm ซ้ำไม่หักเงินซ้ำ | `PlanningEngineTests.ConfirmingTheSameDraftTwice_DoesNotDeductBudgetTwice` |
+| Transactional commit rollback | `PlanningEngineTests.CommitRelocation_InsufficientBudget_AppliesNothing_TransactionalRollback` + `..._GeometryConflict_..._AppliesNothing_EvenWithSufficientBudget` |
+| Population/jobs conserved เมื่อย้ายอาคาร | `PlanningEngineTests.Relocation_ConservesPopulationAndJobs_AndDoesNotMutateGeographyBase` |
+| GeographyBase ไม่เปลี่ยนโดย PlayerDelta | test เดียวกันข้างบน (เช็ค `Assert.Same` + เนื้อหา polygon เดิม) |
+| Save round-trip identity | `SaveLoadTests.SaveThenRestore_ThenContinue_ProducesTheIdenticalHashAsNeverHavingSaved` |
+| Map-version mismatch ถูกปฏิเสธ | `SaveLoadTests.Store_LoadLatest_MapVersionMismatch_IsRejectedExplicitly_NotPartiallyLoaded` |
+| Accessibility ตาม graph ไม่ใช่ radius | `AccessibilityGraphTests.StraightLineNearNodes_WithNoConnectingEdge_AreGraphUnreachable` (โหนดห่างกัน 2 เมตรเส้นตรง แต่คนละฝั่ง "คลอง" ไม่มี edge เชื่อม) |
+
+### ผลลัพธ์ two-solutions (G3 gate)
+
+`TwoSolutionsIntegrationTests` เริ่มจากโจทย์ accessibility ที่ seed ไว้
+(residential cohort อยู่คนละฝั่งคลองจาก job-bearing building เดียวในโลก
+— accessibility score เริ่มต้น **0** จริง ไม่ใช่โจทย์ปลอม) แล้วแก้ด้วย
+สองวิธีที่ต่างกันจริง (คนละ `ProjectKind`, ผลต่อ world state ต่างกันจริง
+— ดู `BothSolutions_AreMechanicallyDistinct_NotTheSameCommandRenamed`):
+
+- **วิธี 1 — ย้ายอาคารที่อยู่อาศัย** เข้าไปใน cluster ที่เชื่อมกับงานได้:
+  accessibility score **0 → 98** (Δ=98)
+- **วิธี 2 — สร้างถนนเชื่อมข้ามคลอง** โดยไม่ย้ายอาคารเลย: accessibility
+  score **0 → 94** (Δ=94), ยืนยันด้วย `Assert.False(...Relocated)` ว่า
+  อาคารไม่ได้ขยับจริง
+
+ตัวเลขจริงพิมพ์ออกทาง test output เสมอ (`docs/evidence/g3-two-solutions-measured.log`)
+ไม่ได้ tune ให้ "มีสองวิธี" เป็นจริงแบบปลอมๆ — ทั้งสองใช้
+`AccessibilityGraph`/`AccessibilityNeed` ตัวเดียวกับที่ test อื่นทั้งหมด
+ในชุดใช้
+
+### Layer separation (AGENTS.md rule 3)
+
+`LayerSeparationTests` (ใหม่) พิสูจน์ด้วย reflection ว่าไม่มี type ใน
+`Thaivia.Core.Simulation.*` (namespace ใหม่ทั้งหมดของ session นี้)
+assignable ไป/มาจาก type ใน `Thaivia.Core.MapPack` เลยสักตัว, ว่า
+`WorldState.GeographyBase`/`SimulationInitialization` เป็น get-only และ
+ไม่มี method ชื่อแนว `MergeIntoGeographyBase`/`ApplyToSource`, และว่า
+reference ของ `SimulationInitialization` ที่ WorldState ถืออยู่เป็น
+instance เดิมตลอด session (`Assert.Same`) `ImmutabilityTests` เดิมจาก
+wave 3 ก็ยังผ่านทั้งหมดโดยไม่ต้องแก้ (namespace ใหม่ไม่ได้แตะ
+`Thaivia.Core.MapPack` เลย)
+
+### สิ่งที่ยัง not_run / blocked / deferred (บอกตรงๆ ไม่ลดสโคปเงียบๆ)
+
+- **`G3-10` (Unity-side UI ของระบบใหม่)** — `blocked`/not attempted
+  โดยเจตนา: โจทย์ของ session นี้ระบุชัดว่า "Do NOT attempt renderer
+  work, scenes, or prefabs" — ไม่มีไฟล์ใหม่ใต้
+  `game/Assets/Scripts/Runtime/` เลยใน session นี้
+- **Turn restrictions ไม่ถูกใช้ใน `AccessibilityGraph`** — G3's
+  accessibility metric เป็น network-distance ล้วนๆ ไม่ได้ประเมิน
+  `TurnRestrictionRecord`/`GameplayTurnPolicy` เลย (มันคือ scope ของ
+  routing ที่แม่นกว่าใน G4) `GameplayTurnPolicy` เขียนไว้ล่วงหน้าให้ G4
+  ใช้ได้ทันที ไม่ต้องออกแบบใหม่
+- **"New road" command จำกัดแค่เชื่อมสอง node ที่มีอยู่แล้วในกราฟ** —
+  ไม่รองรับ polyline ใหม่ที่มี control point อิสระ (2-3 จุด + preview
+  ตาม plan §9) ในรอบนี้ — บันทึกไว้ตรงๆ ใน
+  `PlannedRoadSegment`/`NewRoadConnectorDraft`'s doc comment ว่าเป็น
+  G3 scope decision ที่ deferred ไป G4 ไม่ใช่ข้อจำกัดที่ซ่อนไว้
+- **Safety need เป็น baseline คงที่ (70)** — G3 ไม่มี incident/night-
+  disorder system (G4 scope ตาม plan §16) `CohortNeedsCalculator`
+  บันทึกเหตุผลนี้ไว้ในโค้ดตรงๆ ไม่ใช่ตัวเลขที่ดูเหมือนวัดได้
+- **Unity Editor/Android/iOS/phone/tablet** — ยัง `not_run` ทุกแถว
+  เหมือนทุก session ก่อนหน้า (ADR-0002) ไม่เปลี่ยนแปลงใน session นี้
+- **แผนที่จริง** — ยังไม่ได้นำเข้า เหตุผลเดิมทุกประการ (ADR-0003)
+  session นี้ไม่แตะ Python pipeline เลย (`pytest` ยัง 67 passed เหมือน
+  เดิมโดยไม่ได้รันซ้ำเพื่อพิสูจน์อะไรใหม่ นอกจาก "ไม่พัง")
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน session ก่อนหน้าทุกประการสำหรับ Unity/Android/iOS/OSM data (ดู
+ADR-0002/0003) — session นี้ไม่มี blocker ใหม่ที่ agent เองแก้ไม่ได้
+ทุกอย่างที่ทำได้โดยไม่ต้องมี Unity/ข้อมูล OSM จริงถูกทำแล้ว
+
+### Next dependency-ready tasks
+
+- `G3-10` — รอ Unity Editor เหมือน `G2-01`..`G2-07`
+- G4 mobility work (directed multimodal graph, queues, crossings, buses,
+  signals) — dependency-ready แล้ว: `AccessibilityGraph`'s Dijkstra และ
+  `GameplayTurnPolicy` เป็นจุดเริ่มที่มีอยู่แล้วให้ต่อยอด ไม่ต้องเริ่ม
+  จาก 0
+- `NewRoadConnectorDraft` แบบ polyline อิสระ (ไม่ใช่แค่ node-to-node) —
+  dependency-ready ทันทีที่มีเวลา ไม่ติด blocker ภายนอกใดๆ
+- `G1-10` (real pilot audit) — ยัง blocked เหมือนเดิม รอข้อมูล OSM จริง
+
 ## Session 3 — 2026-09-22 (wave 3 / G2 game-side layer — Thaivia.Core)
 
 ### Task IDs และไฟล์ที่เปลี่ยน

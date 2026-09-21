@@ -35,12 +35,19 @@ Editor, license หรือ build tool ติดตั้งอยู่ ดู
 ไม่มี fake `ProjectVersion.txt` หรือ package lock ใดๆ ถูก commit ไว้ใน
 repo นี้
 
-**สิ่งที่มีจริงในรอบ wave 3 / G2 นี้คือ `Thaivia.Core`** — pure C#
-library (ไม่มี `UnityEngine` reference เลย) ที่ compile และ test ได้จริง
-ด้วย `dotnet build`/`dotnet test` (35 passed) ครอบคลุม MapPack contract
-types, strict loader (content_hash re-derivation, version mismatch
-check), `SourceValue<T>` tri-state, road-graph traversal primitives,
-และ coordinate narrowing ที่วัด error จริง โค้ดฝั่ง Unity
+**สิ่งที่มีจริงคือ `Thaivia.Core`** — pure C# library (ไม่มี
+`UnityEngine` reference เลย) ที่ compile และ test ได้จริงด้วย
+`dotnet build`/`dotnet test` (113 passed ณ wave 4 / G3: 35 จาก wave 3 +
+78 ใหม่) ครอบคลุม MapPack contract types, strict loader (content_hash
+re-derivation, version mismatch check), `SourceValue<T>` tri-state,
+road-graph traversal primitives, coordinate narrowing ที่วัด error จริง,
+และตั้งแต่ wave 4: deterministic tick/RNG streams, household/cohort
+population, 8 building archetypes + activity clock, noise index,
+graph-based accessibility (ไม่ใช่ radius), integer money ledger +
+planning mode (draft/estimate/commit/pay/cancel), building relocation
+เป็นโครงการ, และ save/load เต็มรูปแบบ — ดู
+[`docs/progress.md`](./docs/progress.md) Session 4 และ
+[`docs/decisions/`](./docs/decisions/) 0011-0016 โค้ดฝั่ง Unity
 (`game/Assets/Scripts/Runtime/`) เขียนแล้วแต่**ไม่เคยถูก compile**
 (ทุกไฟล์มี `// UNCOMPILED` marker) เพราะยังไม่มี Editor ในสภาพแวดล้อมนี้
 รายละเอียดเต็มดู [`game/README.md`](./game/README.md)

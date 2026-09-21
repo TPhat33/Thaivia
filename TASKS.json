@@ -1,6 +1,6 @@
 {
   "$comment": "Backlog for Thailand Urban Repair. Gates follow IMPLEMENTATION_PLAN.th.md section 16. Status is only 'done' when a real command/test run backs it (see docs/evidence/). Updated at the end of each session per AGENTS.md.",
-  "updated_at": "2026-09-22",
+  "updated_at": "2026-09-23",
   "tasks": [
     {
       "id": "G0-01",
@@ -9,22 +9,31 @@
       "dependencies": [],
       "acceptance_criteria": "All top-level directories exist; game/ and content/ carry .gitkeep with an honest status note; no fabricated Unity/package files.",
       "status": "done",
-      "evidence": ["directory listing at repo root"]
+      "evidence": [
+        "directory listing at repo root"
+      ]
     },
     {
       "id": "G0-02",
       "gate": "G0",
       "title": "Environment audit (docs/environment.md) with real command evidence",
-      "dependencies": ["G0-01"],
+      "dependencies": [
+        "G0-01"
+      ],
       "acceptance_criteria": "Every row cites an exact command + exit code captured under docs/evidence/; available/missing/blocked/unverified stated truthfully, no guessing.",
       "status": "done",
-      "evidence": ["docs/environment.md", "docs/evidence/g0-*.log"]
+      "evidence": [
+        "docs/environment.md",
+        "docs/evidence/g0-*.log"
+      ]
     },
     {
       "id": "G0-03",
       "gate": "G0",
       "title": "Python toolchain: installable map_pipeline package, venv, pinned+hashed lock, verified imports",
-      "dependencies": ["G0-01"],
+      "dependencies": [
+        "G0-01"
+      ],
       "acceptance_criteria": "pip install -r requirements.txt succeeds from real wheels; osmium/pyproj/shapely/jsonschema/pytest all import on Python 3.11; versions recorded.",
       "status": "done",
       "evidence": [
@@ -38,7 +47,9 @@
       "id": "G0-04",
       "gate": "G0",
       "title": "configs/pilot-area.json + JSON Schema + validating test",
-      "dependencies": ["G0-01"],
+      "dependencies": [
+        "G0-01"
+      ],
       "acceptance_criteria": "Config matches spec defaults (th-bkk-pilot-001 bbox, context buffer, CRS, driving side), has acquire_budget with network/disk limits, coverage_status=UNVERIFIED, validates against schema in a passing pytest test.",
       "status": "done",
       "evidence": [
@@ -51,7 +62,9 @@
       "id": "G0-05",
       "gate": "G0",
       "title": "configs/sources.json + JSON Schema + validating test",
-      "dependencies": ["G0-01"],
+      "dependencies": [
+        "G0-01"
+      ],
       "acceptance_criteria": "Lists all allowed OSM source endpoints with recorded reachability status from this session, prohibited sources, manual unblock instructions; validates against schema.",
       "status": "done",
       "evidence": [
@@ -64,64 +77,106 @@
       "id": "G0-06",
       "gate": "G0",
       "title": "`thaivia doctor` — real environment/dep/config/cache/reachability check",
-      "dependencies": ["G0-03", "G0-04", "G0-05"],
+      "dependencies": [
+        "G0-03",
+        "G0-04",
+        "G0-05"
+      ],
       "acceptance_criteria": "Exits 0 with no hard problems in this environment; exits non-zero on a real hard failure (missing dep import, invalid config, unsupported python); reachability probe distinguishes blocked vs unverified.",
       "status": "done",
-      "evidence": ["docs/evidence/g0-doctor-run.log", "tests/test_cli_smoke.py"]
+      "evidence": [
+        "docs/evidence/g0-doctor-run.log",
+        "tests/test_cli_smoke.py"
+      ]
     },
     {
       "id": "G0-07",
       "gate": "G0",
       "title": "`thaivia acquire`/`build`/`audit`/`verify` CLI stubs — real argparse, honest not-implemented exit code",
-      "dependencies": ["G0-06"],
+      "dependencies": [
+        "G0-06"
+      ],
       "acceptance_criteria": "Each subcommand parses args and exits with exit_codes.NOT_IMPLEMENTED (3), never 0; message names the concrete blocker/dependency.",
       "status": "done",
-      "evidence": ["docs/evidence/g0-cli-stub-commands.log", "tests/test_cli_smoke.py"]
+      "evidence": [
+        "docs/evidence/g0-cli-stub-commands.log",
+        "tests/test_cli_smoke.py"
+      ]
     },
     {
       "id": "G0-08",
       "gate": "G0",
       "title": "pytest harness: config-schema tests, CLI smoke tests, synthetic-fixture-labelling test",
-      "dependencies": ["G0-04", "G0-05", "G0-06", "G0-07"],
+      "dependencies": [
+        "G0-04",
+        "G0-05",
+        "G0-06",
+        "G0-07"
+      ],
       "acceptance_criteria": "pytest run is green; fixtures live under tests/fixtures/synthetic/ and every fixture carries an explicit synthetic marker; a test fails if that marker is missing or a fixture references a real source domain.",
       "status": "done",
-      "evidence": ["docs/evidence/g0-pytest-run.log", "tests/"]
+      "evidence": [
+        "docs/evidence/g0-pytest-run.log",
+        "tests/"
+      ]
     },
     {
       "id": "G0-09",
       "gate": "G0",
       "title": "ADR-0001..0004 (Python 3.11, Unity unverifiable, OSM acquisition blocked, ODbL licensing)",
-      "dependencies": ["G0-02"],
+      "dependencies": [
+        "G0-02"
+      ],
       "acceptance_criteria": "Each ADR states context, real decision, impact, and (where relevant) the smallest human unblock step.",
       "status": "done",
-      "evidence": ["docs/decisions/0001-python-3.11-instead-of-3.12.md", "docs/decisions/0002-unity-unverifiable-in-this-environment.md", "docs/decisions/0003-osm-source-acquisition-blocked.md", "docs/decisions/0004-osm-odbl-licensing.md"]
+      "evidence": [
+        "docs/decisions/0001-python-3.11-instead-of-3.12.md",
+        "docs/decisions/0002-unity-unverifiable-in-this-environment.md",
+        "docs/decisions/0003-osm-source-acquisition-blocked.md",
+        "docs/decisions/0004-osm-odbl-licensing.md"
+      ]
     },
     {
       "id": "G0-10",
       "gate": "G0",
       "title": "docs/data/pilot-audit.md placeholder with honest not_measured fields",
-      "dependencies": ["G0-09"],
+      "dependencies": [
+        "G0-09"
+      ],
       "acceptance_criteria": "States status: blocked, no source data acquired; every count field is explicitly not_measured, not guessed.",
       "status": "done",
-      "evidence": ["docs/data/pilot-audit.md"]
+      "evidence": [
+        "docs/data/pilot-audit.md"
+      ]
     },
     {
       "id": "G0-11",
       "gate": "G0",
       "title": ".gitignore / .gitattributes with Unity text-serialization, binary, and LFS policy",
-      "dependencies": ["G0-01"],
+      "dependencies": [
+        "G0-01"
+      ],
       "acceptance_criteria": "Unity-relevant text assets forced to text diff; binary asset extensions routed to LFS filters in advance of any asset existing; venv/cache/build output ignored.",
       "status": "done",
-      "evidence": [".gitignore", ".gitattributes", "docs/evidence/g0-git-lfs-check.log"]
+      "evidence": [
+        ".gitignore",
+        ".gitattributes",
+        "docs/evidence/g0-git-lfs-check.log"
+      ]
     },
     {
       "id": "G0-12",
       "gate": "G0",
       "title": "AGENTS.md (distilled working rules) + README.md (honest current-state statement)",
-      "dependencies": ["G0-09"],
+      "dependencies": [
+        "G0-09"
+      ],
       "acceptance_criteria": "README states plainly that no real map is imported and no Unity build exists yet; AGENTS.md captures no-fake-data, three-layer separation, evidence, and human-approval rules.",
       "status": "done",
-      "evidence": ["AGENTS.md", "README.md"]
+      "evidence": [
+        "AGENTS.md",
+        "README.md"
+      ]
     },
     {
       "id": "G0-13",
@@ -130,103 +185,161 @@
       "dependencies": [],
       "acceptance_criteria": "Single timeboxed apt-get install attempt, real outcome recorded either way, no PPAs added, no other system-wide installs.",
       "status": "done",
-      "evidence": ["docs/evidence/g0-dotnet-experiment.log"]
+      "evidence": [
+        "docs/evidence/g0-dotnet-experiment.log"
+      ]
     },
     {
       "id": "G1-01",
       "gate": "G1",
       "title": "Implement `thaivia acquire`: real bounded OSM extract against configs/sources.json, honoring acquire_budget",
-      "dependencies": ["G0-07"],
+      "dependencies": [
+        "G0-07"
+      ],
       "acceptance_criteria": "Downloads a bounded extract (not a country-sized file) within max_download_bytes/timeout/retry budget, honors 429/Retry-After, freezes response as a hashed local fixture; asks for human approval above require_human_approval_above_bytes.",
       "status": "done",
       "notes": "--from-url (network) is fully implemented (budget cap, connect/read timeouts, retries with backoff, Retry-After, byte-limit abort, streaming SHA-256) and fails HONESTLY and IMMEDIATELY against every allowed endpoint, which is all policy-blocked (see docs/decisions/0003); it never retries a block and never falls back to synthetic data. --from-local-file (offline) is fully implemented and genuinely exercised end to end. Real pilot-area network acquisition itself is STILL BLOCKED -- this task is 'code done + tested', not 'real th-bkk-pilot-001 data acquired' (that remains G1-10's blocker).",
-      "evidence": ["docs/evidence/g1-acquire-from-url-blocked.log", "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log", "tests/test_pipeline_end_to_end.py"]
+      "evidence": [
+        "docs/evidence/g1-acquire-from-url-blocked.log",
+        "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log",
+        "tests/test_pipeline_end_to_end.py"
+      ]
     },
     {
       "id": "G1-02",
       "gate": "G1",
       "title": "Source lock: URL, retrieval time, source snapshot time (or unknown reason), SHA-256, importer/settings version",
-      "dependencies": ["G1-01"],
+      "dependencies": [
+        "G1-01"
+      ],
       "acceptance_criteria": "A machine-readable lock file is written alongside the cached source and referenced by the eventual MapPack manifest.",
       "status": "done",
       "notes": "Content-addressed by (sha256, settings_hash); immutable once written (a settings change writes a NEW file, never overwrites an old one -- see ADR-0007). Includes source_snapshot_unknown_reason when a snapshot timestamp is not derivable, per spec.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/sourcelock.py", "tests/test_pipeline_sourcelock.py"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/sourcelock.py",
+        "tests/test_pipeline_sourcelock.py"
+      ]
     },
     {
       "id": "G1-03",
       "gate": "G1",
       "title": "Entity parse: nodes/ways/relations with references (not display-GeoJSON-only)",
-      "dependencies": ["G1-01"],
+      "dependencies": [
+        "G1-01"
+      ],
       "acceptance_criteria": "Parser builds the graph from raw OSM entities and references, not from a flattened GeoJSON export; complete_ways vs complete_relations handled explicitly.",
       "status": "done",
       "notes": "osm_parse.py builds OsmDataset directly from osmium node/way/relation callbacks; explicitly documents and handles complete_ways != complete relations (features.py reports incomplete relations rather than dropping them).",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/osm_parse.py", "tests/test_pipeline_features.py::test_incomplete_relation_is_reported_not_silently_dropped"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/osm_parse.py",
+        "tests/test_pipeline_features.py::test_incomplete_relation_is_reported_not_silently_dropped"
+      ]
     },
     {
       "id": "G1-04",
       "gate": "G1",
       "title": "Project/normalize: WGS84 lon/lat -> AOI-appropriate projected CRS -> local origin, always_xy",
-      "dependencies": ["G1-03"],
+      "dependencies": [
+        "G1-03"
+      ],
       "acceptance_criteria": "Round-trip error <=0.10 m; no lon/lat swap; no raw-degrees-as-meters; CRS choice not hardcoded across all of Thailand.",
       "status": "done",
       "notes": "Measured (not asserted) round-trip error on the pilot bbox after 1cm quantization is ~5.9mm max, well under the 0.10m budget. CRS is a per-AOI config value validated against the AOI's own UTM zone/hemisphere (ADR-0005), never hardcoded.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/projection.py", "tests/test_pipeline_projection.py", "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/projection.py",
+        "tests/test_pipeline_projection.py",
+        "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log"
+      ]
     },
     {
       "id": "G1-05",
       "gate": "G1",
       "title": "Topology validation: multipolygon holes, missing references, building parts, duplicate POI/building associations",
-      "dependencies": ["G1-03", "G1-04"],
+      "dependencies": [
+        "G1-03",
+        "G1-04"
+      ],
       "acceptance_criteria": "Holes/multipart features do not become duplicate buildings; unsupported cases land in a report, not a silent drop.",
       "status": "done",
       "notes": "features.py assembles multipolygon holes and multi-part (several outer rings) correctly, keeps building:part as its own feature class (never duplicated), and flags duplicate POI<->building tag associations without dropping either feature.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/features.py", "tests/test_pipeline_features.py"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/features.py",
+        "tests/test_pipeline_features.py"
+      ]
     },
     {
       "id": "G1-06",
       "gate": "G1",
       "title": "Semantic RoadGraph builder: oneway (incl. -1), access/modes, bridge/tunnel/layer, turn restrictions, grade separation",
-      "dependencies": ["G1-04", "G1-05"],
+      "dependencies": [
+        "G1-04",
+        "G1-05"
+      ],
       "acceptance_criteria": "Crossing polylines at different layers never become an intersection; oneway=-1 and turn restrictions survive; unsupported restriction types are reported, not silently dropped.",
       "status": "done",
       "notes": "Junctions are computed purely from shared OSM node references (graph.py never imports shapely, enforced by an AST-level test); a bridge crossing a road at layer=1 with no shared node stays disconnected while a genuinely shared node connects. oneway=-1 -> 'reversed'; junction=roundabout implies forward. Turn restrictions with a via-way (complex) or unrecognized type are marked unsupported and land in the quality report, never silently dropped.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/graph.py", "tests/test_pipeline_graph.py"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/graph.py",
+        "tests/test_pipeline_graph.py"
+      ]
     },
     {
       "id": "G1-07",
       "gate": "G1",
       "title": "Editable interior + read-only context buffer + external gateways",
-      "dependencies": ["G1-06"],
+      "dependencies": [
+        "G1-06"
+      ],
       "acceptance_criteria": "Roads leaving the crop never silently become dead ends; gateways carry bounded simulated demand/capacity, not infinite sink/source.",
       "status": "done",
       "notes": "boundary.py classifies every road node as interior/buffer/outside and synthesizes a Gateway (namespace=simulation_assumption, explicit rule, bounded demand+capacity, never infinite) at each edge endpoint that leaves the AOI. See ADR-0007.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/boundary.py", "tests/test_pipeline_boundary.py"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/boundary.py",
+        "tests/test_pipeline_boundary.py"
+      ]
     },
     {
       "id": "G1-08",
       "gate": "G1",
       "title": "MapPack bake: immutable/versioned, provenance, quality report, OSM/ODbL notices",
-      "dependencies": ["G1-05", "G1-06", "G1-07"],
+      "dependencies": [
+        "G1-05",
+        "G1-06",
+        "G1-07"
+      ],
       "acceptance_criteria": "Deterministic payload for the same source+settings; ships attribution/ODbL notice per ADR-0004; quality report lists unknowns/dropped/quarantined feature IDs with reasons.",
       "status": "done",
       "notes": "content_hash = sha256 of the canonical serialization of `payload` only; all timestamps live in a separate `volatile` section outside the hashed region (ADR-0006). Two independent `thaivia build` runs (>1s apart) produce an identical content_hash; a changed setting produces a different one. Attribution/ODbL notice + copyright URL embedded in provenance. JSON Schema committed at tools/map_pipeline/schemas/mappack.schema.json and validated on every bake and every verify.",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/pipeline/mappack.py", "tools/map_pipeline/schemas/mappack.schema.json", "tests/test_pipeline_mappack_determinism.py", "docs/evidence/g1-determinism-two-runs.log"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/pipeline/mappack.py",
+        "tools/map_pipeline/schemas/mappack.schema.json",
+        "tests/test_pipeline_mappack_determinism.py",
+        "docs/evidence/g1-determinism-two-runs.log"
+      ]
     },
     {
       "id": "G1-09",
       "gate": "G1",
       "title": "Wire `thaivia build` and `thaivia audit` to the real pipeline",
-      "dependencies": ["G1-08"],
+      "dependencies": [
+        "G1-08"
+      ],
       "acceptance_criteria": "`thaivia build` produces a real MapPack from an acquired source; `thaivia audit` regenerates docs/data/pilot-audit.md with real counts, replacing the not_measured placeholders.",
       "status": "done",
       "notes": "`thaivia build`/`thaivia audit`/`thaivia verify` are real, wired to the pipeline, and were exercised end to end (acquire --from-local-file -> build -> audit -> verify, all exit 0) against a synthetic fixture. `thaivia audit` with no --pack leaves the real placeholder untouched (exit NOT_IMPLEMENTED) instead of zero-filling fake numbers -- it has NOT been run against real source data because none has been acquired yet (see G1-10/ADR-0003).",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/commands/{acquire,build,audit,verify}.py", "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log", "tests/test_pipeline_end_to_end.py"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/commands/{acquire,build,audit,verify}.py",
+        "docs/evidence/g1-e2e-local-file-acquire-build-audit-verify.log",
+        "tests/test_pipeline_end_to_end.py"
+      ]
     },
     {
       "id": "G1-10",
       "gate": "G1",
       "title": "Real docs/data/pilot-audit.md for th-bkk-pilot-001",
-      "dependencies": ["G1-09"],
+      "dependencies": [
+        "G1-09"
+      ],
       "acceptance_criteria": "Reports real source snapshot/hash, feature inventory, known/unknown attributes, topology conflicts, retained/rejected counts, and a real usability verdict for the crop.",
       "status": "blocked",
       "blocker": "Every configured OSM source endpoint remains blocked by organization egress policy (see docs/decisions/0003). The pipeline that would produce this document is fully implemented and tested (see G1-01..G1-09); only a real acquired source is missing. docs/data/pilot-audit.md is deliberately left as the honest blocked/not_measured placeholder -- a sample of what `thaivia audit` renders from a SYNTHETIC fixture (never to be confused with this) is saved at docs/evidence/g1-synthetic-e2e-audit-sample.md."
@@ -235,20 +348,36 @@
       "id": "G1-11",
       "gate": "G1",
       "title": "Pipeline correctness tests per plan's test list (lon/lat round-trip, grade separation, oneway=-1/turn restrictions, holes/multipart, source-gap-not-empty-space, buffered crop, deterministic pack, unknown-fields-stay-unknown)",
-      "dependencies": ["G1-04", "G1-05", "G1-06", "G1-07", "G1-08"],
+      "dependencies": [
+        "G1-04",
+        "G1-05",
+        "G1-06",
+        "G1-07",
+        "G1-08"
+      ],
       "acceptance_criteria": "Each listed invariant has a passing pytest test, runnable against both synthetic fixtures and (once available) the real pilot extract.",
       "status": "done",
       "notes": "All 9 spec-mandated cases plus assumption-namespace isolation and hostile/degenerate input handling have passing pytest tests (67 passed total, up from 17 at G0). Tests run against synthetic fixtures only, as documented -- per ADR-0003/AGENTS.md this does NOT pass the real-data gate; that is G1-10, still blocked.",
-      "evidence": ["tests/test_pipeline_*.py", "docs/evidence/g1-pytest-run.log"]
+      "evidence": [
+        "tests/test_pipeline_*.py",
+        "docs/evidence/g1-pytest-run.log"
+      ]
     },
     {
       "id": "G1-12",
       "gate": "G1",
       "title": "`thaivia doctor` should not re-probe policy-blocked hosts on every run",
-      "dependencies": ["G0-06"],
+      "dependencies": [
+        "G0-06"
+      ],
       "acceptance_criteria": "By default reports source reachability from configs/sources.json's recorded_status, labelled as cached; --probe-network opts into the old live-probe behavior.",
       "status": "done",
-      "evidence": ["tools/map_pipeline/src/map_pipeline/doctor.py", "docs/evidence/g1-doctor-run.log", "docs/evidence/g1-doctor-probe-network-run.log", "tests/test_cli_smoke.py::test_doctor_probe_network_flag_is_accepted"]
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/doctor.py",
+        "docs/evidence/g1-doctor-run.log",
+        "docs/evidence/g1-doctor-probe-network-run.log",
+        "tests/test_cli_smoke.py::test_doctor_probe_network_flag_is_accepted"
+      ]
     },
     {
       "id": "G2-01",
@@ -263,7 +392,10 @@
       "id": "G2-02",
       "gate": "G2",
       "title": "Unity MapPack loader (C#)",
-      "dependencies": ["G1-08", "G2-01"],
+      "dependencies": [
+        "G1-08",
+        "G2-01"
+      ],
       "acceptance_criteria": "Loads a local MapPack, validates its manifest hash/schema, exposes GeographyBase/SimulationInitialization/PlayerDelta as separate structures.",
       "status": "partial",
       "blocker": "The loader LOGIC is done and tested outside Unity (see W3-01): Thaivia.Core.Serialization.MapPackLoader loads a MapPack, validates manifest schema/importer version, recomputes and compares content_hash, and exposes GeographyBase/SimulationInitialization as separate immutable types (PlayerDelta/WorldState are separate types in Thaivia.Core.Simulation, not yet wired to any MapPack field -- G3 scope). What remains blocked is the Unity side specifically: game/Assets/Scripts/Runtime/MapPackLoaderBehaviour.cs (a thin MonoBehaviour wrapper around the same loader) is written but has never been compiled or run, because G2-01 (an actual Unity project) is still blocked on a licensed Editor.",
@@ -277,7 +409,9 @@
       "id": "G2-03",
       "gate": "G2",
       "title": "Viewer rendering: top-down + oblique of the same geometry, roads/buildings/water/bridges, no grid-snapping",
-      "dependencies": ["G2-02"],
+      "dependencies": [
+        "G2-02"
+      ],
       "acceptance_criteria": "Same source geometry renders correctly from both camera angles; grade separation stays visually distinct.",
       "status": "blocked",
       "blocker": "Depends on G2-02.",
@@ -287,7 +421,9 @@
       "id": "G2-04",
       "gate": "G2",
       "title": "Viewer interaction: pan/pinch, feature selection, source/unknown/assumption inspector",
-      "dependencies": ["G2-03"],
+      "dependencies": [
+        "G2-03"
+      ],
       "acceptance_criteria": "Selection never mutates geometry; inspector clearly separates real source tags from unknown/assumed values.",
       "status": "blocked",
       "blocker": "Depends on G2-03.",
@@ -297,7 +433,9 @@
       "id": "G2-05",
       "gate": "G2",
       "title": "Attribution UI + simulation-vs-real labelling",
-      "dependencies": ["G2-03"],
+      "dependencies": [
+        "G2-03"
+      ],
       "acceptance_criteria": "Attribution is legibly on-screen (not buried); simulated socio-economic figures are explicitly labelled as simulation.",
       "status": "blocked",
       "blocker": "Depends on G2-03 and ADR-0004's attribution contract.",
@@ -307,7 +445,9 @@
       "id": "G2-06",
       "gate": "G2",
       "title": "Thai UI + tablet layout using the same toolset as phone",
-      "dependencies": ["G2-04"],
+      "dependencies": [
+        "G2-04"
+      ],
       "acceptance_criteria": "Thai text shaping/IME tested; tablet uses a pinned-inspector layout with identical tools to phone, not a separate toolset.",
       "status": "blocked",
       "blocker": "Depends on G2-04."
@@ -316,7 +456,9 @@
       "id": "G2-07",
       "gate": "G2",
       "title": "Android/iOS development build evidence, recorded separately per platform and device type",
-      "dependencies": ["G2-01"],
+      "dependencies": [
+        "G2-01"
+      ],
       "acceptance_criteria": "Editor/emulator/physical-device results are recorded separately; no claim of a build passing without a captured run.",
       "status": "blocked",
       "blocker": "No Android SDK/adb and no macOS/Xcode toolchain in this environment (see docs/environment.md). Needs a human with the relevant device/toolchain access."
@@ -339,6 +481,170 @@
         "docs/decisions/0009-sourcevalue-tristate-design.md",
         "docs/decisions/0010-game-project-layout-shared-source.md"
       ]
+    },
+    {
+      "id": "G3-01",
+      "gate": "G3",
+      "title": "Deterministic world & tick: fixed logical clock (no wall-clock catch-up), named independent PRNG streams, WorldRevision counter",
+      "dependencies": [
+        "W3-01"
+      ],
+      "acceptance_criteria": "Same seed + same committed command sequence produces a bit-identical structural world hash; drawing from one named RNG stream never shifts another's position; resuming after a paused clock adds zero ticks on its own.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Time.{TickConfig,SimClock} (5Hz constant, AdvanceTicks-only clock, Resume() takes no wall-clock parameter at all); Thaivia.Core.Simulation.RandomStreams.{DeterministicRandom,NamedRandomStreams} (splitmix64, one independent object per named stream). WorldState.Revision incremented only by PlanningEngine's commit methods. Verified by SimClockTests (incl. a source-scan control test proving the wall-clock-detector itself is not a no-op, mirroring NoUnityEngineReferenceTests' standard), NamedRandomStreamsTests (incl. DrawingFromOneStream_DoesNotShiftAnotherStreamsSequence), WorldStateDeterminismTests (two independently built WorldStates, same seed+commands, identical ComputeStructuralHash()).",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Time/",
+        "game/Assets/Scripts/Core/Simulation/RandomStreams/",
+        "game/Thaivia.Core.Tests/Simulation/SimClockTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/NamedRandomStreamsTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/WorldStateDeterminismTests.cs",
+        "docs/decisions/0011-tick-rate-and-clock-design.md",
+        "docs/decisions/0012-prng-stream-design.md",
+        "docs/evidence/g3-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G3-02",
+      "gate": "G3",
+      "title": "SimulationInitialization seeding from a loaded MapPack + a ScenarioConfig: household/cohort records, never per-agent population truth",
+      "dependencies": [
+        "G3-01"
+      ],
+      "acceptance_criteria": "Population is stored as household/cohort counts; any renderer-facing agent/sprite sample count is derived on demand and never feeds back into the population total; SimulationInitialization/GeographyBase share no type with the new simulation-layer types.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Scenario.ScenarioConfig (the 'scenario config' the spec requires alongside simulation_initialization.seed, which the G1/G2 pipeline still bakes as {} -- documented honestly, not pretended). Thaivia.Core.Simulation.Cohorts.HouseholdCohort: PopulationCount = HouseholdCount * PeoplePerHousehold is the only source of population truth; SampleAgentCount(cap) is a derived method, never a stored field. WorldState seeds cohorts/BuildingSimState from GeographyBase.Buildings' centroids + a deterministic (non-RNG) archetype hash. Verified by LayerSeparationTests (reflection: no Simulation-namespace type is assignable to/from any MapPack-namespace type) and SimulationFixturesTests.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Scenario/ScenarioConfig.cs",
+        "game/Assets/Scripts/Core/Simulation/Cohorts/",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs",
+        "game/Thaivia.Core.Tests/Simulation/LayerSeparationTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/SimulationFixturesTests.cs"
+      ]
+    },
+    {
+      "id": "G3-03",
+      "gate": "G3",
+      "title": "6-8 building/activity archetypes with an hourly activity clock; ethical constraint (no archetype is inherently a problem) enforced in comments/tests",
+      "dependencies": [
+        "G3-02"
+      ],
+      "acceptance_criteria": "Impact depends on activity x time x location (same archetype quiet at one hour, loud at another); Temple/community archetypes never carry a permanently elevated score; no archetype is wired to a real named place.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Archetypes.BuildingArchetype (8 generic archetypes) + ActivityClockCatalog (per-archetype 24h profile from a named peak-window shape, not a flat hand-typed table). Verified by ActivityClockCatalogTests, incl. an explicit ethical-constraint regression test (Temple_IsCalmAcrossMostOfTheDay_NeverPermanentlyElevated) and LateNightFoodStreet_IsLouderAtNightThanEarlyMorning proving the activity x time dependency.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Archetypes/",
+        "game/Thaivia.Core.Tests/Simulation/NoiseIndexAndActivityClockTests.cs"
+      ]
+    },
+    {
+      "id": "G3-04",
+      "gate": "G3",
+      "title": "Noise index (0-100, of the game) + accessibility computed over the road graph (never a straight-line radius) + cohort needs (sleep/access/safety/economy)",
+      "dependencies": [
+        "G3-03"
+      ],
+      "acceptance_criteria": "A deliberately adversarial fixture (two road-graph nodes 2m apart in straight-line space but on unconnected clusters, i.e. opposite banks of a canal) shows accessibility reflects the network, not the distance.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Noise.NoiseIndex (distance-decay + hourly activity, explicitly documented as a game index, not dB). Thaivia.Core.Simulation.Accessibility.AccessibilityGraph (Dijkstra over RoadGraph node-id adjacency only, exactly like Thaivia.Core.Graph.RoadGraphIndex's discipline) + AccessibilityNeed (0-100 score, null distance scores 0, never 'fine'). The single most scrutinised test per the supervising engineer's brief: AccessibilityGraphTests.StraightLineNearNodes_WithNoConnectingEdge_AreGraphUnreachable and EndToEndAcrossDisconnectedClusters_IsUnreachable_DespiteShortStraightLinePath. See ADR-0015.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Noise/NoiseIndex.cs",
+        "game/Assets/Scripts/Core/Simulation/Accessibility/",
+        "game/Assets/Scripts/Core/Simulation/Cohorts/CohortNeedsCalculator.cs",
+        "game/Thaivia.Core.Tests/Simulation/AccessibilityGraphTests.cs",
+        "docs/decisions/0015-accessibility-graph-metric.md"
+      ]
+    },
+    {
+      "id": "G3-05",
+      "gate": "G3",
+      "title": "Money & Planning Mode: integer ledger (recurring/opex/capex/non-recurring), reserve-then-pay-milestones, transactional commit, idempotent re-confirm",
+      "dependencies": [
+        "G3-01"
+      ],
+      "acceptance_criteria": "Money is integer everywhere (reflection-checked); available = cash - reserved; accepting then paying never double-charges; confirming the same draft twice never deducts twice; commit revalidates geometry/conflicts/budget as one transaction with a proven partial-failure rollback case; estimating a draft touches neither the RNG nor the world.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Economy.MoneyLedger + Thaivia.Core.Simulation.Planning.{ProjectDraft,CommittedProject,PlanningEngine}. Verified by MoneyLedgerTests (incl. a reflection test that no public member uses float/double/decimal) and PlanningEngineTests: Estimate_DoesNotMutateTheWorld_HashAndEveryRngStreamUnchanged, ConfirmingTheSameDraftTwice_DoesNotDeductBudgetTwice, AcceptingThenPayingMilestones_NeverDoubleCharges_..., CommitRelocation_InsufficientBudget_AppliesNothing_TransactionalRollback, CommitRelocation_GeometryConflict_..._AppliesNothing_EvenWithSufficientBudget. See ADR-0013.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Economy/",
+        "game/Assets/Scripts/Core/Simulation/Planning/",
+        "game/Thaivia.Core.Tests/Simulation/MoneyLedgerTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/PlanningEngineTests.cs",
+        "docs/decisions/0013-integer-money-ledger-model.md"
+      ]
+    },
+    {
+      "id": "G3-06",
+      "gate": "G3",
+      "title": "Building relocation as a project: destination geometry + cost + occupants/jobs transferred (not deleted) + old-location treatment; no free teleport; GeographyBase stays untouched",
+      "dependencies": [
+        "G3-05"
+      ],
+      "acceptance_criteria": "Total population and jobs conserved across a move; accessibility changes as a result; GeographyBase reference/content byte-identical before and after; a VacatedLot record captures old-location treatment.",
+      "status": "done",
+      "notes": "PlanningEngine.CommitRelocation applies the move to Thaivia.Core.Simulation.Buildings.BuildingSimState (immutable-replace, source id/jobs count never change) and records a VacatedLot; GeographyBase is never touched (no mutation API exists on it at all -- see ImmutabilityTests). Verified by PlanningEngineTests.Relocation_ConservesPopulationAndJobs_AndDoesNotMutateGeographyBase and Relocation_ImprovesAccessibility_WhenMovingIntoTheConnectedCluster.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Buildings/",
+        "game/Assets/Scripts/Core/Simulation/Planning/PlanningEngine.cs",
+        "game/Thaivia.Core.Tests/Simulation/PlanningEngineTests.cs"
+      ]
+    },
+    {
+      "id": "G3-07",
+      "gate": "G3",
+      "title": "Save/Load: mapId/mapVersion + hash + simulation/content version + mutable state + PlayerDelta-derived state + RNG stream positions; latest/previous with corrupt fallback; explicit map-version-mismatch rejection; round-trip identity",
+      "dependencies": [
+        "G3-06"
+      ],
+      "acceptance_criteria": "save -> load -> continue N ticks produces the identical world hash as never having saved; a save whose mapId/mapContentHash does not match the installed MapPack is rejected explicitly, not partially loaded; a corrupt 'latest' slot falls back to 'previous' and says so.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Save.{SaveGame,SaveSerializer,SaveGameStore,LoadResult}. The second most scrutinised test per the supervising engineer's brief: SaveLoadTests.SaveThenRestore_ThenContinue_ProducesTheIdenticalHashAsNeverHavingSaved. Also: Store_LoadLatest_MapVersionMismatch_IsRejectedExplicitly_NotPartiallyLoaded, Store_CorruptLatest_FallsBackToPrevious_AndSaysSo, Store_BothSlotsCorrupt_ReturnsCorrupt_NeverAPartialLoad. See ADR-0014.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Save/",
+        "game/Thaivia.Core.Tests/Simulation/SaveLoadTests.cs",
+        "docs/decisions/0014-save-format-and-versioning.md"
+      ]
+    },
+    {
+      "id": "G3-08",
+      "gate": "G3",
+      "title": "G3 gate: at least two genuinely different, measured solutions to the seeded noise/access problem",
+      "dependencies": [
+        "G3-04",
+        "G3-06"
+      ],
+      "acceptance_criteria": "Two distinct command sequences (building relocation vs a new road connector) each measurably improve the same accessibility metric, with the improvement measured and printed, not merely asserted > 0.",
+      "status": "done",
+      "notes": "TwoSolutionsIntegrationTests. Baseline accessibility score for the seeded residential cohort's home building is 0 (genuinely unsolved -- opposite side of the fixture's canal from the only job-bearing building). Solution 1 (relocate the residential building into the connected job cluster): 0 -> 98. Solution 2 (commit a new road connector bridging the two clusters, building never moves): 0 -> 94. Both measured via WorldState.ComputeAccessibilityScore and printed to test output (docs/evidence/g3-two-solutions-measured.log), not tuned to make 'two ways exist' trivially true -- both use the exact same AccessibilityGraph/AccessibilityNeed machinery every other test exercises.",
+      "evidence": [
+        "game/Thaivia.Core.Tests/Simulation/TwoSolutionsIntegrationTests.cs",
+        "docs/evidence/g3-two-solutions-measured.log"
+      ]
+    },
+    {
+      "id": "G3-09",
+      "gate": "G3",
+      "title": "ADR owed from the G2 wave: the disclosed temporary rule for TurnDecision.Unsupported in gameplay routing",
+      "dependencies": [],
+      "acceptance_criteria": "A real, tested policy type decides what gameplay routing does with TurnDecision.Unsupported (not left implicit in docs/progress.md prose), documented as an ADR per spec's explicit requirement.",
+      "status": "done",
+      "notes": "Thaivia.Core.Graph.GameplayTurnPolicy.IsAllowedForGameplayRouting: Unsupported is treated exactly like Denied (fail-safe, not fail-open). Verified by GameplayTurnPolicyTests. See ADR-0016.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Graph/GameplayTurnPolicy.cs",
+        "game/Thaivia.Core.Tests/GameplayTurnPolicyTests.cs",
+        "docs/decisions/0016-turn-decision-unsupported-gameplay-routing-rule.md"
+      ]
+    },
+    {
+      "id": "G3-10",
+      "gate": "G3",
+      "title": "G3 Unity-side rendering/UI for the new simulation systems (noise overlay, planning-mode UI, save/load UI)",
+      "dependencies": [
+        "G2-01"
+      ],
+      "acceptance_criteria": "Compiles and runs in a real Unity Editor.",
+      "status": "blocked",
+      "blocker": "Same as G2-01/G2-03..07: no Unity Editor in this environment (ADR-0002). Explicitly out of scope for this wave per the task brief ('simulation core only, pure C#, zero UnityEngine'); not attempted, not claimed.",
+      "notes": "Deferred entirely, not narrowed quietly: this wave is pure C# (game/Assets/Scripts/Core/Simulation/**), zero UnityEngine, by explicit instruction. No Runtime/-side scripts were added for the G3 systems."
     }
   ]
 }

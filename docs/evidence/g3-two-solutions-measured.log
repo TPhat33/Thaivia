@@ -1,0 +1,44 @@
+$ dotnet test Thaivia.sln --filter FullyQualifiedName~TwoSolutionsIntegrationTests --logger "console;verbosity=detailed"
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.38]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.47]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.47]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:00.59]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.TwoSolutionsIntegrationTests.SeededProblem_IsActuallyUnsolvedAtBaseline [35 ms]
+  Standard Output Messages:
+ Baseline accessibility score: 0
+
+
+  Passed Thaivia.Core.Tests.Simulation.TwoSolutionsIntegrationTests.Solution1_RelocatingTheResidentialBuilding_MeasurablyImprovesAccessibility [12 ms]
+  Standard Output Messages:
+ Solution 1 (relocate residential building into the job cluster): 0 -> 98 (delta=98)
+
+
+  Passed Thaivia.Core.Tests.Simulation.TwoSolutionsIntegrationTests.Solution2_BuildingANewRoadConnector_MeasurablyImprovesAccessibility_WithoutMovingAnyBuilding [8 ms]
+  Standard Output Messages:
+ Solution 2 (bridge the canal with a new road connector): 0 -> 94 (delta=94)
+
+
+  Passed Thaivia.Core.Tests.Simulation.TwoSolutionsIntegrationTests.BothSolutions_AreMechanicallyDistinct_NotTheSameCommandRenamed [3 ms]
+  Standard Output Messages:
+ Relocation world accessibility: 98
+ New-road world accessibility: 94
+
+
+
+Test Run Successful.
+Total tests: 4
+     Passed: 4
+ Total time: 1.1461 Seconds
+EXIT_CODE=0

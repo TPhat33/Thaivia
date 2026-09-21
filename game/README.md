@@ -1,4 +1,4 @@
-# game/ — Unity viewer (wave 3 / G2)
+# game/ — Unity viewer (wave 3 / G2) + simulation core (wave 4 / G3)
 
 **There is no Unity Editor, Unity Hub, or Unity license in this
 environment, and `download.unity3d.com` is blocked.** Nothing under
@@ -16,12 +16,21 @@ still build.
 - `game/Thaivia.Core.csproj` + `game/Assets/Scripts/Core/**/*.cs` — a
   pure C# library with **zero** `UnityEngine` reference. It compiles
   standalone with `dotnet build` and is exercised by
-  `game/Thaivia.Core.Tests` (`dotnet test`, 35 tests, all passing — see
-  `docs/evidence/g2-dotnet-build.log` / `g2-dotnet-test.log`). This is
-  the MapPack data contract, its strict loader/validator, the
-  `SourceValue<T>` tri-state, coordinate narrowing, and road-graph
-  traversal primitives — everything the spec's "pure simulation core"
-  requirement calls for that does not itself need `UnityEngine`.
+  `game/Thaivia.Core.Tests` (`dotnet test`, 113 tests, all passing as of
+  wave 4 / G3 — see `docs/evidence/g3-dotnet-build.log` /
+  `g3-dotnet-test.log`). This is the MapPack data contract, its strict
+  loader/validator, the `SourceValue<T>` tri-state, coordinate
+  narrowing, road-graph traversal primitives (wave 3), and — new in
+  wave 4 — the whole G3 simulation core under
+  `game/Assets/Scripts/Core/Simulation/`: a deterministic fixed-tick
+  clock with no wall-clock catch-up, named independent PRNG streams,
+  household/cohort population, 8 building/activity archetypes with an
+  hourly activity clock, a 0-100 "of the game" noise index, accessibility
+  computed strictly over the road graph (never a straight-line radius),
+  an integer-only money ledger with reserve/pay-milestone planning mode,
+  building relocation as a project, and full save/load. See
+  `docs/progress.md` Session 4 and `docs/decisions/0011`-`0016` for the
+  design rationale behind each piece.
 - `game/Assets/Scripts/Core/Thaivia.Core.asmdef` — a hand-written Unity
   assembly-definition file. It is plain JSON, not Editor-generated
   metadata, and it is the mechanism (`"noEngineReferences": true`) that
