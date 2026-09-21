@@ -1,0 +1,7 @@
+=== command: thaivia acquire --from-url https://download.geofabrik.de/asia/thailand-latest.osm.pbf ===
+thaivia acquire: attempting network acquisition from https://download.geofabrik.de/asia/thailand-latest.osm.pbf
+  budget: max_download_bytes=26214400 connect_timeout_s=10 read_timeout_s=60 max_retries=3 retry_backoff_s=[2, 4, 8] honor_retry_after_header=True
+thaivia acquire: network acquisition FAILED (honest failure, not a fake success): blocked by organization egress policy (HTTP 403 on CONNECT/request); never retried and no mirror/VPN/alternate port was attempted -- see docs/decisions/0003-osm-source-acquisition-blocked.md. Underlying error: <urlopen error Tunnel connection failed: 403 Forbidden>
+  See docs/decisions/0003-osm-source-acquisition-blocked.md for the human unblock step.
+  Never routed around the block: no mirrors, no VPN, no alternate ports were attempted.
+EXIT=1

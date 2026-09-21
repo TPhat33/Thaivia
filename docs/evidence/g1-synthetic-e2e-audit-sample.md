@@ -6,13 +6,13 @@
 
 MapPack `content_hash`: `sha256:6e52b443adcaa1ce25a0030d5d31299d5e23ed7763c95fe02d458978fdeff433`
 
-Baked at: `2026-09-21T03:03:22.980689+00:00`
+Baked at: `2026-09-21T03:09:03.061247+00:00`
 
 ## Source snapshot
 
 - Source kind: `local_file`
 - Source location: `tests/fixtures/synthetic/tiny_multipolygon.synthetic.osm.xml`
-- Retrieval time: `2026-09-21T03:03:22.394770+00:00`
+- Retrieval time: `2026-09-21T03:09:02.650453+00:00`
 - Source snapshot time: `None`
 - Source snapshot unknown reason: `source snapshot time not derivable from this file/transfer; OSM PBF/XML extracts do not always carry a reliable snapshot timestamp header`
 - SHA-256: `82e2c6c012483cde3d170fb112d6c050abd666c6ee03f5e4d9b463d4ad309106`

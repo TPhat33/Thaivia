@@ -1,0 +1,34 @@
+=== Determinism evidence: two independent 'thaivia build' runs from the same source+settings ===
+thaivia acquire: local file ingested OK: tests/fixtures/synthetic/tiny_multipolygon.synthetic.osm.xml
+  sha256=82e2c6c012483cde3d170fb112d6c050abd666c6ee03f5e4d9b463d4ad309106 size_bytes=1407
+  source bytes:  /home/user/Thaivia/data/cache/th-bkk-pilot-001.82e2c6c012483cde.source.osm.xml
+  source lock:   /home/user/Thaivia/data/cache/th-bkk-pilot-001.82e2c6c012483cde.c9af71bb5a7d.sourcelock.json (new_lock=True)
+  canonical pointer: /home/user/Thaivia/data/cache/th-bkk-pilot-001.sourcelock.json
+
+--- build run 1 ---
+thaivia build: MapPack baked OK -> /home/user/Thaivia/content/mappacks/th-bkk-pilot-001/6e52b443adcaa1ce.mappack.json
+  content_hash=sha256:6e52b443adcaa1ce25a0030d5d31299d5e23ed7763c95fe02d458978fdeff433
+  synthetic=True
+  retained_counts={'barriers': 0, 'building_parts': 0, 'buildings': 1, 'gateways': 0, 'road_edges': 0, 'road_nodes': 0, 'turn_restrictions_supported': 0, 'water_polygons': 0, 'waterways': 0}
+  rejected_counts={'dropped_features': 0, 'incomplete_relations': 0, 'topology_conflicts': 0, 'unsupported_restrictions': 0}
+  roundtrip_error_m={'max': 0.005921859903144631, 'mean': 0.004847924205210055, 'sample_count': 8}
+  crs_validation_warnings=[]
+EXIT=0
+HASH1=sha256:6e52b443adcaa1ce25a0030d5d31299d5e23ed7763c95fe02d458978fdeff433
+
+--- build run 2 (re-bake, same lock+config, 1.2s later) ---
+thaivia build: MapPack baked OK -> /home/user/Thaivia/content/mappacks/th-bkk-pilot-001/6e52b443adcaa1ce.mappack.json
+  content_hash=sha256:6e52b443adcaa1ce25a0030d5d31299d5e23ed7763c95fe02d458978fdeff433
+  synthetic=True
+  retained_counts={'barriers': 0, 'building_parts': 0, 'buildings': 1, 'gateways': 0, 'road_edges': 0, 'road_nodes': 0, 'turn_restrictions_supported': 0, 'water_polygons': 0, 'waterways': 0}
+  rejected_counts={'dropped_features': 0, 'incomplete_relations': 0, 'topology_conflicts': 0, 'unsupported_restrictions': 0}
+  roundtrip_error_m={'max': 0.005921859903144631, 'mean': 0.004847924205210055, 'sample_count': 8}
+  crs_validation_warnings=[]
+EXIT=0
+HASH2=sha256:6e52b443adcaa1ce25a0030d5d31299d5e23ed7763c95fe02d458978fdeff433
+
+RESULT: identical content_hash across two independent runs (determinism confirmed)
+
+--- now change context_buffer_m in a scratch config copy and re-derive settings hash ---
+settings_hash before: c9af71bb5a7d2579734e3e249345b90017a657b76baf5bf30deeb01c409156e4
+settings_hash after context_buffer_m=999: b86e735d50b66d82ca35f9b6e1a01a6ad02cf3558c317286d4d5a3addd4e6429
