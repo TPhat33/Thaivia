@@ -1,0 +1,30 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Release/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Release/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Release/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Release/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.28]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.34]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.34]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:50.77]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.Mobility.PerformanceBenchmarkTests.SimulateTick_PerTickCost_OnAPilotSizedSyntheticGrid_30MinuteSoak_WithPauseResumeAndASaveInterruption [50 s]
+  Standard Output Messages:
+ Scenario: 8x8 synthetic grid (64 road nodes, 112 edges, 32 buildings, 6 cohorts, 4 signals, 1 bus route(s), 3 incident sites, 1 gateway(s)). THIS IS A SYNTHETIC STAND-IN, NOT THE REAL PILOT AOI -- no real OSM data is imported yet (ADR-0003).
+ Save interruption at tick 4500: capture+serialize+deserialize took 30.248 ms (save file: 8332 bytes, CurrentTick=4600).
+ --- SimulateTick per-tick cost over 9000 ticks (30 in-game minutes at 5Hz), after 100-tick warm-up ---
+ p50: 5.3651 ms | p95: 6.2086 ms | max: 36.3666 ms | mean: 5.3866 ms
+ Budget (spec §15, experimental): p95 <= 5 ms -- MISS (measured p95 = 6.2086 ms).
+
+
+
+Test Run Successful.
+Total tests: 1
+     Passed: 1
+ Total time: 51.2671 Seconds

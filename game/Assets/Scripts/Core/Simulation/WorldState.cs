@@ -75,6 +75,23 @@ public sealed class WorldState
     private readonly Dictionary<long, RoadGraphNode> _nodesById;
     private readonly Dictionary<long, IReadOnlyList<long>> _waysAtNode;
 
+    // --- Per-tick routing graph cache (performance only -- see
+    // docs/evidence/g5-benchmark-*.log and docs/progress.md Session 6 for
+    // the measured motivation). A MobilityGraph is a pure function of
+    // (RoadGraph, mode, _plannedRoadSegments): RoadGraph never changes for
+    // a WorldState instance, and _plannedRoadSegments only ever grows (via
+    // RegisterPlannedRoadSegment -- never replaced/removed), so its COUNT
+    // is a correct, cheap invalidation signal: rebuilding only when a new
+    // segment was committed since the last build produces byte-identical
+    // routing results to rebuilding every tick, just without repeating
+    // O(edges) adjacency-list construction on every one of the ticks in
+    // between. This cache holds no gameplay state of its own (nothing
+    // here is saved/hashed) -- it is exactly as safe to drop and rebuild
+    // as it would be to never have cached at all.
+    private MobilityGraph? _cachedVehicleGraph;
+    private MobilityGraph? _cachedWalkGraph;
+    private int _cachedGraphSegmentCount = -1;
+
     /// <summary>Normal construction: seeds cohorts/buildings fresh from
     /// GeographyBase + ScenarioConfig (SimulationInitialization-layer
     /// data; see ScenarioConfig's doc comment for why the config, not
@@ -360,7 +377,7 @@ public sealed class WorldState
         var hourOfDay = ComputeHourOfDay();
         var tick = Clock.CurrentTick;
 
-        var vehicleGraph = new MobilityGraph(RoadGraph, TravelMode.Vehicle, _plannedRoadSegments);
+        var vehicleGraph = GetOrBuildVehicleGraph();
 
         var demandBatches = TripDemandGenerator.GenerateCommuteBatches(_cohorts.Values, _buildingStates, vehicleGraph, hourOfDay);
         var arrivalsByWay = NetworkDemandAssignment.AssignToWays(vehicleGraph, demandBatches);
@@ -428,7 +445,7 @@ public sealed class WorldState
             return; // skip building a walk graph nobody needs this tick.
         }
 
-        var walkGraph = new MobilityGraph(RoadGraph, TravelMode.Walk, _plannedRoadSegments);
+        var walkGraph = GetOrBuildWalkGraph();
 
         foreach (var route in _busRoutes.OrderBy(r => r.Id, StringComparer.Ordinal))
         {
@@ -637,6 +654,33 @@ public sealed class WorldState
     }
 
     private static int ClampToInt(long value) => (int)Math.Clamp(value, 0, int.MaxValue);
+
+    /// <summary>Returns the cached Vehicle-mode <see cref="MobilityGraph"/>,
+    /// rebuilding it (and invalidating the walk-mode cache alongside it --
+    /// both derive from the same _plannedRoadSegments) only when a new
+    /// PlannedRoadSegment has been committed since the last build. See
+    /// this type's cache field doc comment for why counting segments is a
+    /// correct invalidation signal.</summary>
+    private MobilityGraph GetOrBuildVehicleGraph()
+    {
+        if (_cachedVehicleGraph is null || _cachedGraphSegmentCount != _plannedRoadSegments.Count)
+        {
+            _cachedVehicleGraph = new MobilityGraph(RoadGraph, TravelMode.Vehicle, _plannedRoadSegments);
+            _cachedWalkGraph = null;
+            _cachedGraphSegmentCount = _plannedRoadSegments.Count;
+        }
+
+        return _cachedVehicleGraph;
+    }
+
+    private MobilityGraph GetOrBuildWalkGraph()
+    {
+        // Ensures the segment-count invalidation check above has run this
+        // tick before we trust _cachedWalkGraph's freshness (it is
+        // invalidated alongside the vehicle graph, not independently).
+        _ = GetOrBuildVehicleGraph();
+        return _cachedWalkGraph ??= new MobilityGraph(RoadGraph, TravelMode.Walk, _plannedRoadSegments);
+    }
 
     private static (Dictionary<long, RoadEdge> EdgesByWayId, Dictionary<long, RoadGraphNode> NodesById, Dictionary<long, IReadOnlyList<long>> WaysAtNode) BuildTopologyIndexes(RoadGraph roadGraph)
     {
