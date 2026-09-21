@@ -98,6 +98,116 @@ AllOrNothingAssignmentDistortionTests — ไม่มี test เดิมพ�
 `docs/evidence/g5-task0-dotnet-test.log`) `./.venv/bin/pytest -q` ยัง
 **67 passed** เหมือนเดิม (`docs/evidence/g5-task0-pytest.log`)
 
+### G5-track (หลังจาก Task Zero) — งานที่ทำได้จริงโดยไม่ต้องมี Unity
+
+Plan §16's G5 gate ต้องการ complete playable scenario + art/UI + tutorial
++ before/after + device testing — ส่วน art/UI/tutorial-UI/device ยัง
+`blocked` เหมือนเดิม (ไม่มี Unity Editor/Android/iOS device) ส่วนที่เป็น
+C# จริงและวัดผลได้ทำครบ 5 หัวข้อ (`G5-01`..`G5-05` ใน `TASKS.json`,
+`G5-06` = ส่วน Unity/device ที่ยัง blocked):
+
+**1. Performance budget วัดจริง (spec §15)**:
+`PerformanceBenchmarkTests` (harness เป็น `dotnet test`, เหตุผลเลือกไว้
+ใน ADR-0024) วัด `SimulateTick` จริง 9,000 tick (30 นาทีเกมที่ 5Hz) บน
+grid สังเคราะห์ 8x8 (64 node, 32 อาคาร) — **ระบุตรงๆ ว่าไม่ใช่ pilot AOI
+จริง** (ยังไม่มีข้อมูล OSM จริง ADR-0003) ผลจริง (Release build):
+**p50 ~5.2-5.7ms, p95 ~6.1-6.5ms, max ~36-41ms, mean ~5.2-5.7ms — MISS
+budget 5ms p95 ~24-30%** รายงานตรงๆ ไม่ปิดบัง ไม่ลด scenario จนผ่าน
+วินิจฉัยสาเหตุจริง (Dijkstra ซ้ำไม่ cache ใน demand/bus-reach) และแก้
+บางส่วนจริง (`WorldState` cache `MobilityGraph` ต่อ tick, invalidate
+ด้วยจำนวน `PlannedRoadSegment`) — ช่วยได้แต่ไม่ปิด gap (p95 6.5->6.1ms)
+รายละเอียดเต็มใน ADR-0024 พร้อมข้อเสนอ optimization ต่อที่ dependency-
+ready สำหรับ session ถัดไป
+
+**2. Trade-off จริง วัดสองฝั่ง**: `BudgetConstrainedTradeOffTests`
+สร้างสถานการณ์ที่ต่างจาก G3's two-solutions gate โดยเจตนา (gate นั้น
+baseline=0 เพราะ disconnected ทั้งคู่ ทำให้ "สองทางแก้" แค่คืน
+connectivity ไม่ใช่ทางเลือกจริง) — ที่นี่สอง cohort ต่างกันต้องการถนน
+ใหม่คนละเส้น งบเริ่มต้นพอสำหรับ**แค่เส้นเดียว** วัดจริง: commit ถนนของ
+cohort A -> Access **0->40**, Economy **0->5** (cohort A) ในขณะที่ cohort
+B ยังคง Access=0/Economy=0 เป๊ะ (ไม่ถูกแตะ) และพยายาม commit ถนนของ B
+-> **fail จริง** ("insufficient available budget: need 250000, have
+100000") สลับกัน (commit B ก่อน) ให้ผลสมมาตรตรงข้าม พร้อม control case
+งบพอทั้งคู่ที่ไม่มีใครถูก foreclose
+
+**3. Before/after เป็น first-class feature**:
+`Thaivia.Core.Simulation.Reporting.BeforeAfterComparison.RebuildBaseline`
+สร้างโลก baseline (zero-project) ใหม่จาก reference เดิมทุกตัว
+(GeographyBase/SimulationInitialization/RoadGraph/ScenarioConfig) ได้ทุก
+เมื่อในเซสชัน ไม่ต้อง snapshot ไว้ล่วงหน้า พิสูจน์ด้วย
+`RebuildBaseline_IsAvailableAtAnyPoint_...`: rebuild ตอนเริ่มกับ rebuild
+หลัง 40 tick + commit relocation แล้ว ได้ `ComputeStructuralHash()`
+เท่ากันเป๊ะ และ `GeographyBase` เป็น object เดียวกัน (`Assert.Same`)
+ตลอด
+
+**4. Explainable predictions (spec §12)**: `ExplainedImpact`/
+`ReasoningInput` ใหม่ (ไม่แก้ signature `Estimate*` เดิมเลย เพิ่ม
+`Explain*` คู่ขนาน) ให้ prediction พก uncertainty (ของเดิม) **บวก**
+reasoning input ที่คำนวณมันจริง (เช่น `projected_network_distance_to_
+nearest_job`, `accessibility_reference_distance`) พิสูจน์ว่า reasoning
+สอดคล้องกับตัวเลขจริง (`projected_score - current_score == ExpectedValue`
+เป๊ะ) ไม่ใช่ข้อความแต่งทีหลัง `FixedCostThb` ยังแยกจาก prediction เสมอ
+(คนละ field/type)
+
+**5. Tutorial/scenario progression เป็น data+logic**:
+`Thaivia.Core.Simulation.Progression` (`ObjectiveDefinition`,
+`IObjectiveCheck`, `ScenarioProgression`) — objective ที่ยัง `Locked`
+**ไม่ถูกเรียก check เลย** พิสูจน์ด้วย spy check ที่ throw ถ้าถูกเรียก
+(`Evaluate_NeverEvaluatesALockedObjectivesCheck_SpyControlTest`) ขับ
+objective ให้ผ่านด้วย `PlanningEngine.CommitRelocation` จริง (ตัวเลข
+0->98 เดียวกับ G3's two-solutions gate) ไม่ mock world state
+
+### ผลการทดสอบสุดท้าย (ทั้ง session)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g5-final-dotnet-build.log`) `dotnet test
+game/Thaivia.sln` → **202 passed** (162 ก่อน session นี้ + 40 ใหม่: 21
+Task Zero + 1 benchmark + 3 trade-off + 3 before/after + 6 explainable +
+6 progression, ไม่มี test เดิมพังเลยสักตัวตลอด session —
+`docs/evidence/g5-final-dotnet-test.log`) `./.venv/bin/pytest -q` ยัง
+**67 passed** เหมือนเดิม (`docs/evidence/g5-final-pytest.log`)
+
+### สามทางแบ่งงาน (compiled+tested / written-but-not_run / deferred)
+
+**Compiled + tested (dotnet test ผ่านจริง)**: ทุกอย่างข้างบนทั้งหมด
+(Task Zero ทั้งสองส่วน + G5-01..G5-05 ทั้งห้า) — 40 test ใหม่ ทุกตัวรัน
+จริงและผ่านจริง
+
+**Written-but-not_run**: ไม่มีในรอบนี้ (session นี้ไม่ได้แตะ
+`game/Assets/Scripts/Runtime/` เลย โค้ด Unity เดิมจาก wave 3 ยังอยู่ใน
+สถานะเดิม uncompiled)
+
+**Deferred (บันทึกเหตุผลตรงๆ)**:
+- **`G5-06`** (Unity-side art/UI/tutorial-UI/before-after-view UI +
+  device testing) — `blocked` เหมือนทุก wave (ADR-0002) ไม่มี Unity
+  Editor/Android/iOS ในสภาพแวดล้อมนี้
+- **Performance budget ยัง MISS** — บันทึกไว้ตรงๆ ข้างบน ไม่ใช่
+  deferred แบบเงียบๆ แต่เป็น honest measured result พร้อม root-cause
+  diagnosis และ optimization ต่อที่ dependency-ready
+- **`NetworkDemandAssignment` all-or-nothing ยังไม่แก้เป็น
+  capacity-aware equilibrium** — วัดผลกระทบจริงแล้ว
+  (`AllOrNothingAssignmentDistortionTests`, ADR-0023) เป็นการบิดเบือนจริง
+  ไม่ใช่ edge case เล็กน้อย dependency-ready สำหรับ session ถัดไป
+- **แผนที่จริง** — ยังไม่ได้นำเข้า เหตุผลเดิมทุกประการ (ADR-0003)
+  session นี้ไม่แตะ Python pipeline เลย (pytest 67 passed เหมือนเดิม)
+- **Unity Editor/Android/iOS/phone/tablet** — ยัง `not_run` ทุกแถว
+  เหมือนทุก session ก่อนหน้า (ADR-0002) ไม่เปลี่ยนแปลงใน session นี้
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน session ก่อนหน้าทุกประการสำหรับ Unity/Android/iOS/OSM data (ดู
+ADR-0002/0003) — session นี้ไม่มี blocker ใหม่ที่ agent เองแก้ไม่ได้
+
+### Next dependency-ready tasks
+
+- Deeper OD-route caching (`TripDemandGenerator`/`NetworkDemandAssignment`/
+  `BusRidership`'s repeated Dijkstra calls) เพื่อปิด performance budget
+  gap ต่อ — จุดเริ่มระบุไว้ใน ADR-0024
+- `NetworkDemandAssignment` แบบ capacity-aware iterative assignment —
+  จุดเริ่มระบุไว้ใน ADR-0023
+- `G5-06` — ยังรอ Unity Editor/device เหมือนเดิม
+- `G1-10` (real pilot audit) — ยัง blocked เหมือนเดิม รอข้อมูล OSM จริง
+
 ## Session 5 — 2026-09-21 (wave 5 / G4 mobility, queues, signals, incidents)
 
 ### Task Zero (แก้ gap ที่ supervisor ระบุไว้ก่อน G4 ทั้งหมด)

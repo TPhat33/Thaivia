@@ -869,6 +869,105 @@
         "game/Thaivia.Core.Tests/Simulation/RoadWorksProjectTests.cs",
         "docs/decisions/0023-g4-tick-loop-integration-and-roadworks-project.md"
       ]
+    },
+    {
+      "id": "G5-01",
+      "gate": "G5",
+      "title": "Measure real per-tick performance against spec §15's experimental 5ms p95 budget",
+      "dependencies": [
+        "G4-11"
+      ],
+      "acceptance_criteria": "A dotnet-test benchmark harness measures SimulateTick's real p50/p95/max/mean over a 30-in-game-minute soak (9,000 ticks at 5Hz) on a documented synthetic scenario, with a pause/resume and a mid-run save interruption exercised; the real numbers are reported honestly (including a miss) rather than the scenario being shrunk until it passes.",
+      "status": "done",
+      "evidence": [
+        "game/Thaivia.Core.Tests/Simulation/Mobility/PerformanceBenchmarkTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/PerformanceBenchmarkFixtures.cs",
+        "docs/decisions/0024-g5-performance-benchmark-methodology.md",
+        "docs/evidence/g5-benchmark-simulatetick.log"
+      ],
+      "notes": "MEASURED MISS: p50 ~5.2-5.7ms, p95 ~6.1-6.5ms, max ~36-41ms on an 8x8 synthetic grid (64 nodes, 32 buildings) -- NOT the real pilot AOI (no OSM data imported yet, ADR-0003). Root cause diagnosed (repeated uncached Dijkstra calls scaling with cohort x job-building and cohort x stop pairs per tick); a real (not cosmetic) MobilityGraph caching optimization was added and helped modestly (~5-6%) but did not close the gap. Deeper OD-route caching is dependency-ready for the next session (see ADR-0024)."
+    },
+    {
+      "id": "G5-02",
+      "gate": "G5",
+      "title": "A genuine trade-off scenario with measured before/after numbers on both sides",
+      "dependencies": [
+        "G3-09",
+        "G4-01"
+      ],
+      "acceptance_criteria": "A scenario where the player cannot afford both of two real fixes, each measurably helping a different cohort; committing either one measurably improves that cohort's real Access/Economy needs AND measurably forecloses the other (proven by a real PlanningEngine commit failing on insufficient budget, not a contrived rule). Both directions tested; a control case with sufficient budget for both shows neither is foreclosed.",
+      "status": "done",
+      "evidence": [
+        "game/Thaivia.Core.Tests/Simulation/BudgetConstrainedTradeOffTests.cs",
+        "docs/evidence/g5-tradeoff-measured.log"
+      ]
+    },
+    {
+      "id": "G5-03",
+      "gate": "G5",
+      "title": "Before/after comparison as a first-class, always-available feature",
+      "dependencies": [
+        "G3-09"
+      ],
+      "acceptance_criteria": "A baseline (zero-project) world can be reconstructed on demand at any point in a session, from the same GeographyBase/SimulationInitialization/RoadGraph/ScenarioConfig references (never copied), and reproduces byte-for-bit identically whether rebuilt at session start or after many ticks/commits. GeographyBase is proven to stay the exact same object throughout.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Reporting/BeforeAfterComparison.cs",
+        "game/Thaivia.Core.Tests/Simulation/BeforeAfterComparisonTests.cs",
+        "docs/evidence/g5-before-after-measured.log"
+      ]
+    },
+    {
+      "id": "G5-04",
+      "gate": "G5",
+      "title": "Explainable predictions -- uncertainty + reasoning inputs, fixed cost kept separate",
+      "dependencies": [
+        "G3-09",
+        "G4-12"
+      ],
+      "acceptance_criteria": "A committed project's predicted impact carries both its existing uncertainty band (ImpactRange) and the named reasoning inputs that produced it (ExplainedImpact/ReasoningInput), consistent (not just adjacent) with the range's own numbers; FixedCostThb remains a separate, definite field never conflated with the prediction.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Planning/ExplainedImpact.cs",
+        "game/Assets/Scripts/Core/Simulation/Planning/ReasoningInput.cs",
+        "game/Thaivia.Core.Tests/Simulation/ExplainedImpactTests.cs",
+        "docs/decisions/0025-g5-explainable-predictions.md",
+        "docs/evidence/g5-explainable-predictions.log"
+      ]
+    },
+    {
+      "id": "G5-05",
+      "gate": "G5",
+      "title": "Tutorial/scenario progression as data + logic, testable headlessly",
+      "dependencies": [
+        "G3-09",
+        "G4-12"
+      ],
+      "acceptance_criteria": "Objective definitions, an ordered progression, and the pure checks that decide completion are all plain C# data + logic (no UI/Unity dependency); a Locked objective's check is never evaluated (proven with a throwing spy check, not just asserted); objectives are driven to completion via real PlanningEngine commits in tests.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Progression/",
+        "game/Thaivia.Core.Tests/Simulation/ScenarioProgressionTests.cs",
+        "docs/decisions/0026-g5-scenario-objective-progression-model.md",
+        "docs/evidence/g5-scenario-progression.log"
+      ]
+    },
+    {
+      "id": "G5-06",
+      "gate": "G5",
+      "title": "Complete playable scenario: art/UI, tutorial UI, before/after view UI, device testing",
+      "dependencies": [
+        "G2-01",
+        "G5-01",
+        "G5-02",
+        "G5-03",
+        "G5-04",
+        "G5-05"
+      ],
+      "acceptance_criteria": "A full playable scenario rendered and playable in the Unity Editor, tested on Android/iOS phone and tablet per plan §16's G5 row.",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Blocked on the same external dependency as every prior wave (ADR-0002): no Unity Editor, no Android/iOS devices in this environment. All the C#-only sub-parts of G5 that do not require Unity/devices (G5-01..G5-05) are done. Smallest human step: install Unity 6.3 LTS + a real license, open game/ as the root project, fix compiler errors in game/Assets/Scripts/Runtime/ (written, never compiled -- see game/README.md), then build to a connected Android/iOS device."
     }
   ]
 }
