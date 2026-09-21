@@ -33,7 +33,17 @@ audit -> MapPack bake -> verify` ทำงานจริงทุกขั้�
 Editor, license หรือ build tool ติดตั้งอยู่ ดูเหตุผลและแผนถัดไปใน
 [`docs/decisions/0002-unity-unverifiable-in-this-environment.md`](./docs/decisions/0002-unity-unverifiable-in-this-environment.md)
 ไม่มี fake `ProjectVersion.txt` หรือ package lock ใดๆ ถูก commit ไว้ใน
-repo นี้ (ยังไม่แตะ G2 ในรอบนี้)
+repo นี้
+
+**สิ่งที่มีจริงในรอบ wave 3 / G2 นี้คือ `Thaivia.Core`** — pure C#
+library (ไม่มี `UnityEngine` reference เลย) ที่ compile และ test ได้จริง
+ด้วย `dotnet build`/`dotnet test` (35 passed) ครอบคลุม MapPack contract
+types, strict loader (content_hash re-derivation, version mismatch
+check), `SourceValue<T>` tri-state, road-graph traversal primitives,
+และ coordinate narrowing ที่วัด error จริง โค้ดฝั่ง Unity
+(`game/Assets/Scripts/Runtime/`) เขียนแล้วแต่**ไม่เคยถูก compile**
+(ทุกไฟล์มี `// UNCOMPILED` marker) เพราะยังไม่มี Editor ในสภาพแวดล้อมนี้
+รายละเอียดเต็มดู [`game/README.md`](./game/README.md)
 
 `thaivia` CLI มี subcommand `doctor` (ตรวจ environment; default = cached
 reachability, `--probe-network` เพื่อ live-probe), `acquire`
@@ -47,7 +57,8 @@ available/missing/blocked/unverified แบบเต็ม และ
 ## โครงสร้าง repo
 
 ```
-game/                 Unity project (ยังว่าง — รอ G2 เมื่อมี Unity Editor)
+game/                 Unity project. Thaivia.Core (pure C#, dotnet build/test) is real;
+                       Assets/Scripts/Runtime is written but uncompiled (no Unity Editor here).
 tools/map_pipeline/   Python package: acquire -> build -> audit -> verify pipeline
 content/              MapPack output และ content ที่ generate แล้ว (ยังว่าง)
 configs/              pilot-area.json, sources.json + JSON Schemas
@@ -81,6 +92,19 @@ PACK=$(find content/mappacks -name '*.mappack.json')
 ./.venv/bin/thaivia audit --pack "$PACK"
 ./.venv/bin/thaivia verify --pack "$PACK"
 ```
+
+## เริ่มต้นใช้งาน (Thaivia.Core, .NET toolchain)
+
+```sh
+cd game
+dotnet build Thaivia.Core.csproj
+dotnet test Thaivia.Core.Tests/Thaivia.Core.Tests.csproj
+```
+
+ทั้งสองคำสั่งรันได้จริงด้วย `dotnet-sdk-8.0` ที่ติดตั้งไว้แล้ว
+(container-local) ไม่ต้องมี Unity ใดๆ — ดู
+[`game/README.md`](./game/README.md) สำหรับขอบเขตที่ชัดเจนของสิ่งที่
+compile+test ได้จริง เทียบกับโค้ด Unity ที่เขียนแล้วแต่ยังไม่เคย compile
 
 ## License / ODbL
 

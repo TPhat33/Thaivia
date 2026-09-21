@@ -1,5 +1,136 @@
 # Progress log
 
+## Session 3 — 2026-09-22 (wave 3 / G2 game-side layer — Thaivia.Core)
+
+### Task IDs และไฟล์ที่เปลี่ยน
+
+ทำ `W3-01` เสร็จ (สถานะ `done`) และ `G2-02` เปลี่ยนเป็น `partial` (ดู
+`TASKS.json` สำหรับ acceptance criteria/evidence เต็ม) `G2-01`,
+`G2-06`, `G2-07` ยัง `blocked` เหมือนเดิม (ไม่มี Unity Editor) `G2-03`,
+`G2-04`, `G2-05` ยัง `blocked` แต่เพิ่ม notes ว่าโค้ดเขียนแล้ว (uncompiled)
+
+ไฟล์ใหม่หลัก:
+
+- `game/Thaivia.Core.csproj`, `game/Thaivia.sln` — pure C# library
+  project, compile จาก `game/Assets/Scripts/Core/**/*.cs` โดยตรง (ไม่
+  copy source)
+- `game/Assets/Scripts/Core/` (ใหม่ทั้งโฟลเดอร์): `Values/SourceValue.cs`
+  + `AssumptionKind.cs`, `MapPack/*.cs` (contract types ตรงกับ
+  `tools/map_pipeline/schemas/mappack.schema.json`),
+  `Serialization/{CanonicalJson,JsonRequire,MapPackLoader,MapPackLoadException}.cs`,
+  `Coordinates/{Vec3F,CoordinateNarrowing}.cs`,
+  `Graph/RoadGraphIndex.cs`, `Attributes/{Building,Road}Attributes.cs`,
+  `Simulation/{PlayerDelta,WorldState}.cs`, `Thaivia.Core.asmdef`
+- `game/Thaivia.Core.Tests/` (ใหม่ทั้งโฟลเดอร์): xUnit project +
+  `SourceValueTests.cs`, `MapPackLoaderTests.cs`, `RoadGraphIndexTests.cs`,
+  `CoordinateNarrowingTests.cs`, `ImmutabilityTests.cs`,
+  `NoUnityEngineReferenceTests.cs`, `Fixtures/*.synthetic.mappack.json`
+  (real `thaivia build` output จาก synthetic fixtures สอง fixture)
+- `game/Assets/Scripts/Runtime/` (ใหม่ทั้งโฟลเดอร์, UnityEngine-dependent,
+  **uncompiled** — ทุกไฟล์มี `// UNCOMPILED` marker):
+  `MapPackLoaderBehaviour.cs`, `Rendering/{Road,Building,Water}MeshBuilder.cs`,
+  `Camera/OrthoObliqueCameraRig.cs`, `Input/PanPinchController.cs`,
+  `Selection/FeatureSelectionController.cs`,
+  `UI/{InspectorPanelController,AttributionOverlay,SimulationDisclaimerLabel}.cs`,
+  `Thaivia.Runtime.asmdef`
+- `game/README.md`, `game/Assets/Scripts/Runtime/README.md`,
+  `game/Packages/README.md` — คำอธิบาย compiled+tested vs
+  written-but-not_run split และขั้นตอนมนุษย์ที่เหลือ
+- `docs/decisions/0008..0010-*.md`, `docs/evidence/g2-*.log`
+
+### สิ่งที่ทำงานจริง (ยืนยันด้วยการรันจริง)
+
+`Thaivia.Core` compile ผ่าน `dotnet build` (0 warnings, 0 errors —
+`docs/evidence/g2-dotnet-build.log`) และผ่าน `dotnet test` ที่
+`game/Thaivia.Core.Tests`: **35 passed** (`docs/evidence/g2-dotnet-test.log`)
+ครอบคลุม:
+
+- MapPack round-trip จริง: โหลด MapPack ที่ `thaivia build` (Python)
+  ผลิตจริงจาก `tests/fixtures/synthetic/road_graph_layers.synthetic.osm.xml`
+  และ `multipart_building.synthetic.osm.xml` (คำสั่งที่ใช้สร้างไฟล์เหล่านี้
+  บันทึกไว้ที่ `docs/evidence/g2-fixture-generation.log`) — ไฟล์ที่ commit
+  ไว้ที่ `game/Thaivia.Core.Tests/Fixtures/*.synthetic.mappack.json` มี
+  `provenance.synthetic: true` ชัดเจน
+- Tampered pack (แก้ 1 หลักใน payload) → `MapPackTamperedException`
+  จาก content_hash mismatch จริง (ไม่ใช่แค่ trust ค่าที่ประกาศไว้ — ดู
+  ADR-0008 สำหรับวิธี re-derive canonical hash ใน C# ให้ตรงกับ Python)
+- Version mismatch (schema_version/importer_version) →
+  `MapPackVersionMismatchException` ที่ระบุ field/found/expected ชัดเจน
+  ตรวจก่อน hash check เสมอ (ไม่ทำให้เข้าใจผิดว่าไฟล์ถูก tamper)
+- `SourceValue<T>`: `Assumed`/`Unknown` อ่านผ่าน `AsSourceFact()` ไม่ได้
+  (throw จริง); `Unknown` ไม่มีทาง degrade เป็น default ที่ดูเหมือนค่าจริง
+- Grade separation: `RoadGraphIndex` สร้าง adjacency จาก shared node id
+  เท่านั้น (ไม่แตะ geometry/layer เลย) — edge สอง way ที่ cross กันใน plan
+  view แต่ไม่มี node ร่วมกันจะไม่มี adjacency เลย, edge ที่มี node ร่วมกัน
+  มี adjacency เสมอไม่ว่า layer จะต่างกันแค่ไหน
+- `oneway=-1` (Reversed) traverse ได้แค่ทิศย้อนกลับ; turn restriction
+  ที่ supported ปิดกั้นทางที่ระบุจริง; restriction ที่ `unsupported`
+  (เช่น via-way) คืน `TurnDecision.Unsupported` ไม่ใช่ `Allowed` เงียบๆ
+- Coordinate narrowing: วัด error จริง (ไม่ assert away) — สูงสุดที่พบใน
+  synthetic fixture จริงคือ ~3.4mm, ที่จุดสังเคราะห์ระยะ ~5000m จาก origin
+  ได้ sub-millimetre — ดูรายละเอียดในหัวข้อ "float32 narrowing error"
+  ด้านล่าง
+- Determinism: โหลด MapPack เดิมสองครั้งได้ graph โครงสร้างเดียวกันเป๊ะ
+  (`content_hash` เท่ากัน, node/edge ทุกตัวตรงกัน)
+- Immutability enforced ในระดับ type: `ImmutabilityTests` ใช้ reflection
+  เช็คว่าทุก public property ใน `Thaivia.Core.MapPack` เป็น get-only
+  หรือ init-only เท่านั้น (เช็ค `IsExternalInit` modifier — สิ่งเดียวกับที่
+  compiler เช็คจริง ไม่ใช่ proxy ที่อ่อนกว่า)
+- `PlayerDelta`/`WorldState` (namespace `Thaivia.Core.Simulation`) เป็น
+  type แยกจาก `GeographyBase`/`SimulationInitialization` โดยสิ้นเชิง —
+  ไม่มี base type ร่วม ไม่มี field ที่รับอีกฝั่งได้ ตรวจด้วย
+  `PlayerDelta_And_WorldState_ShareNoTypeWithGeographyBaseOrSimulationInitialization`
+- UnityEngine-freedom: `NoUnityEngineReferenceTests` scan source จริง
+  หา `using UnityEngine` (ยืนยันว่าไม่มี ทั้ง `Core/` เอง และ scan ซ้ำทุก
+  `dotnet test` run); `Thaivia.Core.csproj` ไม่มี reference ไปยัง
+  UnityEngine เลยด้วยตัวมันเอง — `using UnityEngine;` จะทำให้
+  `dotnet build` fail ทันที (พิสูจน์เชิงโครงสร้าง ไม่ใช่แค่ scan)
+- `./.venv/bin/pytest -q` (Python pipeline) ยัง **67 passed** เหมือนเดิม
+  — session นี้ไม่แตะโค้ด Python เลย (`docs/evidence/g2-pytest-still-passing.log`)
+
+### float32 narrowing error (วัดจริง)
+
+`Thaivia.Core.Coordinates.CoordinateNarrowing.ToUnityGroundPlane` เป็น
+จุดเดียวที่ narrow float64 → float32 ทั้งระบบ วัด error สองแบบใน
+`CoordinateNarrowingTests`:
+
+- จุดสังเคราะห์ที่ระยะ ~5000m จาก local origin (ลำดับขนาดของ pilot AOI
+  + buffer ตาม `configs/pilot-area.json`): error วัดได้ sub-millimetre
+  ต่อแกน (bound ที่ assert คือ < 1mm — generous ไม่ใช่ tuned ให้พอดี
+  ค่าที่วัดได้)
+- ทุก node coordinate จริงใน synthetic fixture (`road_graph_layers`,
+  9 nodes): max |error| = **0.00339m (~3.4mm)** — ตัวเลขจริงพิมพ์ออกทาง
+  test output เสมอ ไม่ถูก assert away
+
+### สิ่งที่ยัง not_run / blocked
+
+- ทุกอย่างที่ต้องพึ่ง Unity Editor จริง (compile ของ
+  `game/Assets/Scripts/Runtime/`, scene/prefab, play-mode run, build ใดๆ)
+  — **not_run** เหมือนเดิม (ADR-0002) โค้ด Runtime เขียนแล้วแต่ไม่เคยผ่าน
+  compiler เลย ทุกไฟล์มี `// UNCOMPILED` marker ที่ตรวจซ้ำด้วย
+  `NoUnityEngineReferenceTests.RuntimeSourceTree_IsMarkedAsUncompiledUnityCode`
+- Android/iOS/phone/tablet — ไม่เปลี่ยนจาก session ก่อนหน้า ยัง `not_run`
+  ทุกแถว (ไม่มี Android SDK/adb, ไม่มี macOS/Xcode)
+- แผนที่จริงยังไม่ได้นำเข้า — เหตุผลเดิมทุกประการ (ADR-0003) session นี้
+  ไม่แตะ Python pipeline หรือพยายามดึงข้อมูลจริงเลย
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน G0/G1 ทุกประการสำหรับ Unity: ต้องมีมนุษย์ที่มี Unity license +
+Editor install จริง (Unity 6.3 LTS, เช็ค patch ปัจจุบันตอนติดตั้ง) เปิด
+`game/` เป็น root project แล้วแก้ compile error ที่ Editor Console รายงาน
+(ไฟล์ `Runtime/` ไม่เคยผ่าน compiler เลย) ดู `game/README.md` สำหรับ
+รายการขั้นตอนแบบเต็ม — Android ต้องมี Android SDK/adb + device จริง, iOS
+ต้องมี macOS + Xcode
+
+### Next dependency-ready tasks
+
+- `G2-01` — ยังรอ Unity Editor เหมือนเดิม (ไม่เปลี่ยน)
+- `G3` (real scenario seeding ใน `SimulationInitialization`, wiring
+  `PlayerDelta` เข้ากับ MapPack ที่โหลดแล้วจริงๆ) — dependency-ready แล้ว
+  ตอนนี้ที่ `Thaivia.Core`'s types มีครบ
+- `G1-10` (real pilot audit) — ยัง blocked เหมือนเดิม รอข้อมูล OSM จริง
+
 ## Session 2 — 2026-09-21 (G1 Real-map data pipeline)
 
 ### Task IDs และไฟล์ที่เปลี่ยน

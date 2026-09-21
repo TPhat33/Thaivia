@@ -1,6 +1,6 @@
 {
   "$comment": "Backlog for Thailand Urban Repair. Gates follow IMPLEMENTATION_PLAN.th.md section 16. Status is only 'done' when a real command/test run backs it (see docs/evidence/). Updated at the end of each session per AGENTS.md.",
-  "updated_at": "2026-09-21",
+  "updated_at": "2026-09-22",
   "tasks": [
     {
       "id": "G0-01",
@@ -265,8 +265,13 @@
       "title": "Unity MapPack loader (C#)",
       "dependencies": ["G1-08", "G2-01"],
       "acceptance_criteria": "Loads a local MapPack, validates its manifest hash/schema, exposes GeographyBase/SimulationInitialization/PlayerDelta as separate structures.",
-      "status": "blocked",
-      "blocker": "Depends on G1-08 (a real MapPack to load) and G2-01 (a Unity project to load it into)."
+      "status": "partial",
+      "blocker": "The loader LOGIC is done and tested outside Unity (see W3-01): Thaivia.Core.Serialization.MapPackLoader loads a MapPack, validates manifest schema/importer version, recomputes and compares content_hash, and exposes GeographyBase/SimulationInitialization as separate immutable types (PlayerDelta/WorldState are separate types in Thaivia.Core.Simulation, not yet wired to any MapPack field -- G3 scope). What remains blocked is the Unity side specifically: game/Assets/Scripts/Runtime/MapPackLoaderBehaviour.cs (a thin MonoBehaviour wrapper around the same loader) is written but has never been compiled or run, because G2-01 (an actual Unity project) is still blocked on a licensed Editor.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Serialization/MapPackLoader.cs",
+        "game/Thaivia.Core.Tests/MapPackLoaderTests.cs",
+        "game/Assets/Scripts/Runtime/MapPackLoaderBehaviour.cs"
+      ]
     },
     {
       "id": "G2-03",
@@ -275,7 +280,8 @@
       "dependencies": ["G2-02"],
       "acceptance_criteria": "Same source geometry renders correctly from both camera angles; grade separation stays visually distinct.",
       "status": "blocked",
-      "blocker": "Depends on G2-02."
+      "blocker": "Depends on G2-02.",
+      "notes": "Written (uncompiled): game/Assets/Scripts/Runtime/Rendering/{Road,Building,Water}MeshBuilder.cs and Camera/OrthoObliqueCameraRig.cs -- one orthographic camera switches pitch between top-down and oblique over the same built meshes, so there is no separate oblique-only geometry to drift out of sync. Grade separation comes from RoadEdge.Layer (a semantic ordering, never metres, per Thaivia.Core's own contract) times a fixed visual step. Still blocked: never compiled or visually verified (needs G2-01)."
     },
     {
       "id": "G2-04",
@@ -284,7 +290,8 @@
       "dependencies": ["G2-03"],
       "acceptance_criteria": "Selection never mutates geometry; inspector clearly separates real source tags from unknown/assumed values.",
       "status": "blocked",
-      "blocker": "Depends on G2-03."
+      "blocker": "Depends on G2-03.",
+      "notes": "Written (uncompiled): Selection/FeatureSelectionController.cs (raycast pick, never mutates the picked feature -- there is nothing mutable on it to call) and UI/InspectorPanelController.cs, which renders source/unknown/assumption as three visually distinct rows driven entirely by SourceValue<T>.Match(...). Still blocked: never compiled or run (needs G2-01/G2-03)."
     },
     {
       "id": "G2-05",
@@ -293,7 +300,8 @@
       "dependencies": ["G2-03"],
       "acceptance_criteria": "Attribution is legibly on-screen (not buried); simulated socio-economic figures are explicitly labelled as simulation.",
       "status": "blocked",
-      "blocker": "Depends on G2-03 and ADR-0004's attribution contract."
+      "blocker": "Depends on G2-03 and ADR-0004's attribution contract.",
+      "notes": "Written (uncompiled): UI/AttributionOverlay.cs (bound to payload.provenance.attribution) and UI/SimulationDisclaimerLabel.cs (bound to payload.simulation_initialization.note). Still blocked: never compiled or run (needs G2-01/G2-03)."
     },
     {
       "id": "G2-06",
@@ -319,8 +327,18 @@
       "title": "Pure C# simulation core scaffold (no UnityEngine dependency), testable via dotnet test",
       "dependencies": [],
       "acceptance_criteria": "A .csproj compiles and its tests run with `dotnet test` using the container-local .NET SDK; the core never imports UnityEngine.",
-      "status": "pending",
-      "notes": "Out of scope for this G0 session per task instructions (wave 2/3 internals not started beyond G0 deliverables); dotnet-sdk-8.0 is confirmed available in this container (docs/evidence/g0-dotnet-experiment.log) so this task is dependency-ready whenever picked up."
+      "status": "done",
+      "notes": "Thaivia.Core (game/Thaivia.Core.csproj, source under game/Assets/Scripts/Core/) compiles with `dotnet build` (0 warnings, 0 errors) and is exercised by game/Thaivia.Core.Tests via `dotnet test`: 35 passed (see docs/evidence/g2-dotnet-build.log, g2-dotnet-test.log). Covers the MapPack contract types, a strict loader/validator with content_hash re-derivation and schema/importer version checks, SourceValue<T> (Known/Unknown/Assumed), GeographyBase immutability (get-only properties + a reflection test), Simulation.PlayerDelta/WorldState kept structurally separate from GeographyBase/SimulationInitialization, float64->float32 coordinate narrowing with measured error, and RoadGraphIndex traversal (node-id-only adjacency, oneway incl. reversed, turn restrictions incl. unsupported). UnityEngine-freedom is enforced by the project having no UnityEngine reference at all (not just by convention), by Thaivia.Core.asmdef's noEngineReferences=true, and by a source-scan test (NoUnityEngineReferenceTests). See ADR-0008/0009/0010.",
+      "evidence": [
+        "game/Thaivia.Core.csproj",
+        "game/Assets/Scripts/Core/",
+        "game/Thaivia.Core.Tests/",
+        "docs/evidence/g2-dotnet-build.log",
+        "docs/evidence/g2-dotnet-test.log",
+        "docs/decisions/0008-mappack-loader-csharp-canonicalization.md",
+        "docs/decisions/0009-sourcevalue-tristate-design.md",
+        "docs/decisions/0010-game-project-layout-shared-source.md"
+      ]
     }
   ]
 }
