@@ -840,14 +840,35 @@
     {
       "id": "G4-11",
       "gate": "G4",
-      "title": "G4 automatic tick-loop integration (live OD demand -> queues -> signals -> incidents each SimulateTick) and Unity-side UI",
+      "title": "G4 automatic tick-loop integration (live OD demand -> queues -> signals -> incidents each SimulateTick)",
       "dependencies": [
         "G4-10"
       ],
-      "acceptance_criteria": "WorldState.SimulateTick automatically generates OD demand from cohorts each in-game hour, assigns it to links, advances queues/signals/incident risk from real noise/congestion state every tick, and renders in Unity.",
-      "status": "blocked",
+      "acceptance_criteria": "WorldState.SimulateTick() runs the real per-tick sequence (demand->assignment->queue step->signal step->bus step->gateway step->incident evaluation) in a documented, fixed order (ADR-0023); determinism/gateway-conservation/bounded-incidents/save-roundtrip/non-mutating-Estimate all re-proven with the loop live. Unity-side UI remains blocked (no Unity Editor).",
+      "status": "done",
       "blocker": "Out of scope for this wave by time/risk management, not by an external blocker: the standalone modules (routing/queues/signals/incidents/gateways/demand) are each fully implemented and tested in isolation and wired into WorldState's persisted state (G4-10), but no gameplay loop yet calls them automatically every tick with live inputs (real per-tick noise/congestion/hour-of-day feeding IncidentConditions, live OD demand feeding LinkQueueSimulator every tick). Also blocked, same as G2-01..07/G3-10, on the absence of a Unity Editor in this environment for any rendering/UI work (ADR-0002).",
-      "notes": "Dependency-ready: every primitive it needs (TripDemandGenerator, NetworkDemandAssignment, LinkQueueSimulator, SignalInstance, IncidentEngine, IncidentConditions) already exists, tested, and is reachable from WorldState. This is the natural next task for a following session."
+      "notes": "Dependency-ready: every primitive it needs (TripDemandGenerator, NetworkDemandAssignment, LinkQueueSimulator, SignalInstance, IncidentEngine, IncidentConditions) already exists, tested, and is reachable from WorldState. This is the natural next task for a following session.",
+      "evidence": [
+        "game/Thaivia.Core.Tests/Simulation/Mobility/IntegratedTickLoopTests.cs",
+        "docs/decisions/0023-g4-tick-loop-integration-and-roadworks-project.md",
+        "docs/evidence/g5-task0-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G4-12",
+      "gate": "G4",
+      "title": "Road works as a real committable project through PlanningEngine (budget reservation, transactional commit, cancellation truncation)",
+      "dependencies": [
+        "G4-04",
+        "G4-10"
+      ],
+      "acceptance_criteria": "ProjectKind.RoadWorks + RoadWorksDraft + PlanningEngine.CommitRoadWorks/EstimateRoadWorksCapacityImpact follow the same reserve/pay-milestone/cancel discipline as BuildingRelocation/NewRoadConnector; cancelling mid-construction truncates the zone's future effect without rewriting past ticks' capacity.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Planning/PlanningEngine.cs",
+        "game/Thaivia.Core.Tests/Simulation/RoadWorksProjectTests.cs",
+        "docs/decisions/0023-g4-tick-loop-integration-and-roadworks-project.md"
+      ]
     }
   ]
 }

@@ -1,5 +1,103 @@
 # Progress log
 
+## Session 6 — 2026-09-21 (wave 6 / G4 tick-loop integration + G5-track work)
+
+### Task Zero (ปิด gap ที่ supervisor ระบุก่อนงานอื่นทั้งหมด)
+
+`WorldState.SimulateTick()` เดิม (wave 5) ทำแค่ `Clock.AdvanceTicks(1)` +
+draw หนึ่งค่าจาก Traffic stream — ทุก G4 primitive implement+test แยก
+เสร็จแล้วแต่ไม่มีอะไรเรียกมันโดยอัตโนมัติต่อ tick เลย (G4 เป็น library
+ไม่ใช่ simulation ที่รันจริง) แก้แล้ว: `SimulateTick()` รันลำดับจริงตาม
+ADR-0023 ทุก tick: hour-of-day จาก clock -> `MobilityGraph`(Vehicle) สด
+-> OD demand batches จาก cohort activity clock -> all-or-nothing
+assignment -> link queue step -> signal step (arrivals แบ่งตาม topology
+จริงของ node) -> bus step (ridership จาก walking-reach จริง) -> gateway
+step (demand จาก `Gateway.InboundDemandVehPerHour`/
+`OutboundDemandVehPerHour` ของ MapPack จริง) -> incident evaluation
+(risk จาก hour/noise/congestion จริงที่ node นั้น) ลำดับและเหตุผลเต็ม
+อยู่ใน ADR-0023 และ `WorldState.SimulateTick`'s doc comment เอง
+
+**Determinism คงอยู่กับ loop ที่ run จริง**: ไม่ต้องแก้
+`ComputeStructuralHash()` เพิ่มเลย — state ที่ SimulateTick ทำให้มีค่า
+จริง (queues/gateways/signals/incidents) ถูก hash ไว้แล้วตั้งแต่ ADR-0021
+(G4 WorldState wiring, wave 5) Task Zero แค่ทำให้ field เดิมมีการ
+เปลี่ยนแปลงจริงระหว่างเล่น ไม่ได้เพิ่ม persisted field ใหม่เลยสักตัว
+`IntegratedTickLoopTests.TwoWorlds_SameSeedSameIntegratedTickRun_ProduceIdenticalStructuralHash`
+พิสูจน์ด้วย fixture ที่เชื่อมต่อจริง (`IntegratedTickFixtures`, สี่แยก
+จริงพร้อม lanes tag, gateway ที่มี demand จริง, signal/bus/incident
+ลงทะเบียนไว้) รัน 5 ชั่วโมงเกมพร้อม commit road-works project กลางทาง
+แล้ว hash ตรงกันเป๊ะระหว่างสองโลก และต่างกันเมื่อ seed ต่าง (control)
+
+**Gateway conservation กับ loop ที่ run จริง**:
+`GatewayConservation_HoldsAcrossThousandsOfTicks_WithTheFullLoopRunning_AndACloseReopenMidRun`
+รัน 5,000 tick เต็ม loop (ไม่ใช่ unit test แยก) ปิด gateway ที่ tick 1500
+เปิดใหม่ที่ tick 3200 assert `IsConserved` ทุก tick — ผลจริงที่วัดได้:
+`Generated=25000, Completed=6600, Queued=18400` ทั้งขาเข้า/ออก
+(`Generated == Completed + Queued` เป๊ะ)
+
+**Incident rate ยัง bound ภายใต้เงื่อนไขจริง**:
+`IncidentRate_StaysBoundedUnderLiveConditions_AcrossMultipleFullDays` รัน
+3 วันเกมเต็ม (1,296,000 tick) ด้วย hour/noise/congestion ที่มาจาก loop
+จริง (ไม่ใช่ risk=1.0 สังเคราะห์แบบ IncidentEngineTests เดิม) —
+NightDisorder เกิดจริง 3,057 ครั้ง (hard max ตามทฤษฎี 12,343), StreetRacing
+4,749 ครั้ง (hard max 14,401) ทั้งสองต่ำกว่า theoretical max มาก ไม่ใช่
+เบียดขอบ
+
+**Save round-trip ครอบ live state**:
+`SaveThenRestore_ThenContinueTheIntegratedLoop_ProducesTheIdenticalHashAsNeverHavingSaved`
+save ที่ 2 ชั่วโมงเกม, restore, เดินต่ออีก 3 ชั่วโมงเกม เทียบกับโลกที่ไม่
+เคย save เลย — hash ตรงกันเป๊ะ (sanity check ยืนยันว่า run นี้มี live state
+จริงไม่ใช่ trivial-empty)
+
+**Estimate ยัง non-mutating หลัง loop run จริง**:
+`EstimateStaysNonMutating_AfterTheIntegratedLoopHasProducedRealLiveMobilityState`
+รัน loop 2 ชั่วโมงเกมให้มี queue/gateway backlog/signal state/incident
+จริงก่อน แล้วเรียก Estimate ทั้งสามตัว (relocation/new-road/road-works)
+assert hash+RNG state/draw count+cash ไม่เปลี่ยนแม้แต่บิตเดียว
+
+**Cohort Safety ผูกกับ incident จริงแล้ว** (ปิด gap ที่ G3 บันทึกไว้ตรงๆ
+ว่า "baseline คงที่ 70 เพราะยังไม่มีระบบ incident"):
+`WorldState.ComputeSafetyScore` คำนวณจาก incident site ที่ Active จริง
+ที่ reachable จาก home node ภายใน 500m (decay เชิงเส้น x severity, เอา
+ค่าแย่ที่สุดไม่ใช่ sum) `CohortSafety_DropsBelowBaseline_...` พิสูจน์:
+Safety วัดได้ 61 (ต่ำกว่า baseline 70) เมื่อมี incident Active จริงหนึ่ง
+hop จากบ้าน — ถ้า wiring ไม่ทำงานจริง test นี้จะ fail
+
+**บั๊ก/ข้อจำกัดจริงที่พบและบันทึกตรงๆ**: `NetworkDemandAssignment` ยัง
+all-or-nothing (ADR-0022, wave 5) — `AllOrNothingAssignmentDistortionTests`
+(ใหม่) พิสูจน์ด้วย fixture สองเส้นทางจริงว่า **นี่คือการบิดเบือนผลจริง
+วัดได้จริง ไม่ใช่ edge case ที่ไม่สำคัญ**: 100% ของ demand ค้างอยู่บน
+เส้นทางสั้น/capacity ต่ำตลอด 200 tick (backlog โต 800 คัน) ในขณะที่
+เส้นทางอ้อม capacity สูงกว่าไม่เคยได้รับ arrival เลยแม้จะเหลือ capacity
+มาก รายละเอียดเต็มและข้อเสนอแก้ (capacity-aware iterative assignment)
+อยู่ใน ADR-0023
+
+### Road works เป็น committable project (ปิด gap ที่สองที่ wave 5 deferred)
+
+`ProjectKind.RoadWorks` + `RoadWorksDraft` + `PlanningEngine.
+CommitRoadWorks`/`EstimateRoadWorksCapacityImpact` ใช้ discipline เดียวกับ
+โครงการอื่นทุกประการ (reserve -> pay milestone -> cancel, idempotent
+re-confirm, rollback เต็มเมื่อ validation ล้มเหลว) กติกาเฉพาะของ
+RoadWorks: cancel กลางทางจะ truncate zone ให้จบที่ tick ปัจจุบัน (อนาคต
+ไม่ถูก degrade อีก) แต่ไม่แก้ประวัติ tick ที่ผ่านไปแล้ว —
+`RoadWorksProjectTests` (13 test) ครอบ: reserve ถูกจำนวน, idempotent
+re-confirm, rollback เมื่องบไม่พอ/way ไม่มีจริง/multiplier นอกช่วง/
+milestone ไม่ครบ, no-double-charge, และสอง cancellation-truncation test
+(ก่อน/หลัง cancel ต้องต่างกันเฉพาะ tick ในอนาคต, zone ที่จบไปแล้วตาม
+ธรรมชาติต้องไม่ถูกแตะ) `WorldState.AddRoadWorksZone` เดิมยังอยู่เป็น
+direct-mutation escape hatch สำหรับ test/manual setup เท่านั้น (doc
+comment อัปเดตให้ตรงความจริงใหม่)
+
+### ผลการทดสอบ (Task Zero)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g5-task0-dotnet-build.log`) `dotnet test
+game/Thaivia.sln` → **183 passed** (162 เดิม + 21 ใหม่ — 7
+IntegratedTickLoopTests + 13 RoadWorksProjectTests + 1
+AllOrNothingAssignmentDistortionTests — ไม่มี test เดิมพังเลยสักตัว,
+`docs/evidence/g5-task0-dotnet-test.log`) `./.venv/bin/pytest -q` ยัง
+**67 passed** เหมือนเดิม (`docs/evidence/g5-task0-pytest.log`)
+
 ## Session 5 — 2026-09-21 (wave 5 / G4 mobility, queues, signals, incidents)
 
 ### Task Zero (แก้ gap ที่ supervisor ระบุไว้ก่อน G4 ทั้งหมด)
