@@ -1,0 +1,30 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.39]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.47]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.48]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:00.57]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.Mobility.GatewayConservationTests.ReopeningAGateway_DrainsThePreviouslyQueuedBacklog_WithoutLosingOrDuplicatingAnyOfIt [5 ms]
+  Passed Thaivia.Core.Tests.Simulation.Mobility.GatewayConservationTests.TotalTripsAcrossManyTicks_WithAGatewayCloseAndReopen_ConserveExactly [23 ms]
+  Standard Output Messages:
+ Outbound -- generated: 1750, completed: 1507, queued: 243
+ Inbound  -- generated: 1000, completed: 1000, queued: 0
+
+
+  Passed Thaivia.Core.Tests.Simulation.Mobility.GatewayConservationTests.LeakyGatewayVariant_ThatDropsQueuedDemandOnClose_ViolatesConservation_ProvingTheAboveTestBites [3 ms]
+  Passed Thaivia.Core.Tests.Simulation.Mobility.GatewayConservationTests.ClosedGateway_NeverDischargesTrips_TheyOnlyQueueUp [< 1 ms]
+
+Test Run Successful.
+Total tests: 4
+     Passed: 4
+ Total time: 1.1183 Seconds
