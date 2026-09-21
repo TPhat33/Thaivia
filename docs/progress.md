@@ -1,5 +1,188 @@
 # Progress log
 
+## Session 5 — 2026-09-21 (wave 5 / G4 mobility, queues, signals, incidents)
+
+### Task Zero (แก้ gap ที่ supervisor ระบุไว้ก่อน G4 ทั้งหมด)
+
+`AccessibilityGraphTests`'s bridge test เดิม (wave 4) พิสูจน์แค่ finite
+vs null — network distance ที่คำนวณได้ (32m) บังเอิญเท่ากับ straight-line
+distance เพราะ fixture เป็นเส้นตรง (collinear) ทำให้ mutant ที่แทน
+Dijkstra ด้วย Euclidean distance + connectivity check จะผ่าน test เดิม
+ทั้ง 113 ตัว เพิ่ม `SimulationFixtures.BuildDetourRoadGraph` (ช่องว่าง 2m
+เส้นตรง เชื่อมกันจริงแค่ทาง detour ~502m ผ่านสะพาน) และสอง test:
+`ConnectedGraphWithGrossDetour_NetworkDistance_MatchesTheDetourAndIsNotStraightLine`
+(assert 502m, `Assert.NotEqual` กับ 2m) และ
+`ConnectedGraphWithGrossDetour_NaiveEuclideanStandIn_WouldReportAMaterialityDifferentAnswer`
+(mutation-style control: คำนวณคำตอบของ naive Euclidean stand-in บน
+fixture เดียวกัน แล้ว assert ว่าต่างจากคำตอบจริง >100m — พิสูจน์ว่า
+fixture discriminate ได้จริง ไม่ใช่แค่สมมติ) 115 passed (113+2), ไม่มี
+test เดิมถูกอ่อนลง (`docs/evidence/g4-task0-dotnet-*.log`)
+
+### Task IDs และไฟล์ที่เปลี่ยน
+
+`G4-00`..`G4-10` เสร็จ (`done`), `G4-11` (auto tick-loop integration +
+Unity UI) `blocked`/deferred ตามที่อธิบายด้านล่าง — ดู `TASKS.json`
+สำหรับ acceptance criteria/evidence เต็มของแต่ละ task
+
+โมดูลใหม่ทั้งหมดอยู่ใต้ `game/Assets/Scripts/Core/Simulation/Mobility/`
+(namespace ใหม่ `Thaivia.Core.Simulation.Mobility.*`, pure C# เหมือนเดิม
+ไม่มี `UnityEngine` แม้แต่บรรทัดเดียว — `NoUnityEngineReferenceTests`
+สแกนซ้ำทุก `dotnet test` run เหมือนเดิม):
+
+- `Routing/{TravelMode,ModeAccess,MobilityGraph}.cs` — directed
+  multimodal graph (Walk/Vehicle/Freight), turn-aware Dijkstra บน state
+  space `(node, arrivalWayId)`, ใช้ `RoadGraphIndex.EvaluateTurn` +
+  `GameplayTurnPolicy` จริงเป็นครั้งแรก (G3 เขียนไว้ล่วงหน้าแต่ไม่เคยถูก
+  consume) Walk mode ไม่ผูก oneway/turn restriction ของรถ
+- `Queues/{LinkKey,LinkCapacity,LinkQueueSimulator}.cs` — finite-capacity
+  queue ต่อ directed link, congestion เป็นผลลัพธ์ arithmetic ตรงจาก
+  capacity เท่านั้น (`queue' = max(0, queue+arrivals-capacity)`) ไม่มี
+  "traffic score" ที่ไหนเลย
+- `RoadWorks/RoadWorksZone.cs` — ลด effective capacity เฉพาะช่วง
+  `[StartTick, StartTick+DurationTicks)`
+- `Crossings/PedestrianCrossing.cs` — `AccessibleFlag` เปลี่ยน walking
+  route จริง (ผ่าน `MobilityGraph`'s `requireAccessibleCrossings`)
+- `Signals/{ISignalPlan,FixedTimeSignalPlan,AdaptiveSignalPlan,
+  SignalIntersectionSimulator,SignalInstance,SignalPlanKind,
+  SignalApproach}.cs` — fixed ก่อน adaptive (ตามลำดับ spec), adaptive
+  ตอบสนอง queue จริง วัด trade-off จริง (ดูหัวข้อ "ผลลัพธ์ trade-off"
+  ด้านล่าง)
+- `Transit/{BusRoute,BusRouteScheduler,BusRidership}.cs` — schedule จาก
+  network distance จริง + dwell, ridership จาก cohort population batch,
+  bounded ด้วย fleet capacity
+- `Gateways/{TripLedgerSnapshot,GatewayFlow,GatewayNetwork}.cs` —
+  integer-exact conservation ledger (`Generated == Completed + Queued`
+  เป๊ะ), ปิด gateway ไม่ลบ demand แค่ทำให้ capacity เป็น 0 ชั่วคราว
+- `Incidents/{IncidentStrand,IncidentPhase,IncidentConditions,
+  IncidentThresholds,IncidentSite,IncidentEngine,IncidentLevers}.cs` —
+  สอง strand สมมติ (NightDisorder/StreetRacing), risk function รับแค่
+  (hour, noise, congestion) ไม่มีทาง "เห็น" archetype/place identity
+  เลยเชิงโครงสร้าง, RNG ใช้แค่สุ่ม severity ไม่เคยกำหนดว่าจะเกิดหรือไม่
+- `Demand/{OdBatch,TripDemandGenerator,NetworkDemandAssignment}.cs` — OD
+  demand เป็น batch ต่อ cohort (ไม่ใช่ต่อคน), all-or-nothing assignment
+  ลง way จริงตาม shortest path
+- `game/Thaivia.Core.Tests/Simulation/Mobility/*.cs` (ใหม่ 11 ไฟล์, 49
+  test ใหม่ในรอบ G4 หลัก + 2 test ของ Task Zero)
+- `docs/decisions/0017..0022-*.md` — ADR ของ routing/capacity model,
+  signals/crossings/buses, gateway conservation, incident system,
+  WorldState wiring/save extension, OD demand
+- `docs/evidence/g4-*.log`
+
+### สิ่งที่ทำงานจริง (ยืนยันด้วยการรันจริง)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g4-demand-dotnet-build.log`, ไฟล์ build log ล่าสุดของ
+รอบนี้) `dotnet test game/Thaivia.sln` → **162 passed** (113 เดิม + 2
+Task Zero + 47 G4 test ใหม่ ไม่มี test เดิมพังเลยสักตัวตลอดทั้ง session
+— `docs/evidence/g4-demand-dotnet-test.log`) `./.venv/bin/pytest -q`
+(Python pipeline) ยัง **67 passed** เหมือนเดิม (session นี้ไม่แตะ Python
+เลย — `docs/evidence/g4-pytest-still-passing.log`)
+
+Invariant ที่โจทย์ระบุ ↔ ชื่อ test ที่พิสูจน์:
+
+| Invariant | Test |
+|---|---|
+| Turn restriction บังคับ vehicle routing จริง | `MobilityGraphTests.VehicleMode_RespectsTurnRestriction_TakesTheLegalDetour_WhereWalkModeIgnoresItAndGoesDirect` |
+| Queue congestion เกิดจาก capacity ไม่ใช่ score | `LinkQueueSimulatorTests.SustainedArrivalsExceedingCapacity_GrowsTheQueueByExactlyTheShortfallPerTick` |
+| Accessible crossing เปลี่ยน walking route จริง | `CrossingsTests.InaccessibleCrossing_ShortensGeneralWalkingRoute_ButAccessibleNeedTravellerStillDetours` |
+| Adaptive ≠ fixed signal | `SignalsTests.AdaptiveSignal_ImprovesTheBusyApproach_ButMeasurablyWorsensTheLightApproach_ComparedToFixed` |
+| Road works กระทบระหว่างสร้างเท่านั้น | `RoadWorksTests.RoadWorks_MeasurablyWorsensQueueingDuringConstruction_ComparedToBeforeAndAfter` |
+| Gateway trip conservation (integer-exact) | `GatewayConservationTests.TotalTripsAcrossManyTicks_WithAGatewayCloseAndReopen_ConserveExactly` |
+| ...+ leaky-variant control | `GatewayConservationTests.LeakyGatewayVariant_ThatDropsQueuedDemandOnClose_ViolatesConservation_ProvingTheAboveTestBites` |
+| Incident rate มี hard bound | `IncidentEngineTests.IncidentRate_IsHardBoundedOverALongRun_NeverPerTickSpawning` |
+| Incident เกิดจากเงื่อนไข ไม่ใช่ RNG | `IncidentEngineTests.Triggering_IsDrivenByConditions_NotByTheRngSeed_OnlySeverityDiffersBetweenSeeds` |
+| Save round-trip ครอบ G4 state ทั้งหมด | `MobilitySaveRoundTripTests.AllG4MobilityState_SurvivesASaveRestoreRoundTrip_FieldByField` |
+| Determinism คงอยู่กับ G4 state | `MobilitySaveRoundTripTests.TwoWorlds_SameSeedSameMobilityCommands_ProduceIdenticalStructuralHash` |
+| Ethical constraint (ไม่ผูก archetype กับความเสี่ยง) | `IncidentEngineTests.EthicalControl_NoIncidentsApiTakesABuildingArchetypeParameter` |
+
+### ผลลัพธ์ trade-off ที่วัดจริง (fixed vs adaptive signal)
+
+รัน over-saturated intersection จริง 4000 ticks (arrivals รวม 7/tick >
+discharge rate 4/tick ทุก tick ไม่ว่า split ไหน — ตั้งใจให้ทั้งสอง
+approach คับคั่งจริง ไม่ใช่โจทย์ปลอดภัยที่ไม่มีอะไรให้ trade-off):
+
+| Metric (average queue length ตลอด run) | Fixed (50/50) | Adaptive |
+|---|---|---|
+| Approach A (คับคั่งกว่า) | 3991.00 | 3440.37 (**ดีขึ้น** 13.8%) |
+| Approach B (เบากว่า) | 2010.50 | 2561.13 (**แย่ลง** 27.4%) |
+
+นี่คือ trade-off จริง ไม่ได้ tune ค่าคงที่จนกว่าจะ "เจอ" ผลที่ดูดี —
+ตัวเลขทั้งสองแถวมาจากการรันจริงครั้งเดียวกัน (`docs/evidence/g4-signals-tradeoff-measured.log`)
+รายละเอียดเหตุผลที่ทั้งสองฝั่งยังโตไม่มีที่สิ้นสุด (เพราะ intersection
+over-saturated ทั้งระบบ) บันทึกไว้ตรงๆ ใน ADR-0018 ไม่ claim เกินจริงว่า
+adaptive "แก้ปัญหา"
+
+### Layer separation และ determinism (ตรวจซ้ำ)
+
+โมดูล G4 ทั้งหมดอยู่ใต้ `Thaivia.Core.Simulation.Mobility.*` ไม่แตะ
+`Thaivia.Core.MapPack` เลย (อ่านอย่างเดียวผ่าน `RoadGraph`/`RoadEdge`/
+`Gateway` ที่มีอยู่แล้ว) `WorldState`'s constructor ปกติสร้าง
+`GatewayFlow` จาก `RoadGraph.Gateways` จริง (capacity จาก
+`Gateway.ExternalCapacityVehPerHour` ซึ่งเป็น `simulation_assumption`
+เสมอตาม field เดิม) — ไม่มี gateway ไหนถูกสร้างจาก constant ลอยๆ
+`ComputeStructuralHash` ขยายให้ครอบทุก field ใหม่ **ในคอมมิตเดียวกับ**
+ที่เพิ่ม state นั้น (ไม่ใช่ add save ก่อนแล้วเพิ่ม hash ทีหลัง) —
+`TwoWorlds_SameSeedSameMobilityCommands_ProduceIdenticalStructuralHash`
+พิสูจน์ตรงนี้ ImmutabilityTests/NoUnityEngineReferenceTests/
+LayerSeparationTests เดิมจาก wave 3-4 ยังผ่านทั้งหมดโดยไม่ต้องแก้
+
+### บั๊กจริงที่พบและแก้ระหว่าง session นี้ (บันทึกตรงๆ)
+
+`NetworkDemandAssignment.AssignToWays` เวอร์ชันแรก double-count arrivals
+เมื่อ way เดียวมีหลาย polyline segment บนเส้นทางเดียวกัน (คาดหวัง 40,
+ได้จริง 80) — test จับได้ทันทีตอนรันครั้งแรก แก้ด้วยการ de-duplicate
+way_id ต่อ batch ก่อน accumulate (ดู ADR-0022 สำหรับรายละเอียด) — เป็น
+ตัวอย่างจริงของ "test ที่เขียนก่อนแล้วจับบั๊กจริง" ไม่ใช่ test ที่เขียน
+ตามโค้ดจนผ่านเสมอ
+
+### สิ่งที่ยัง not_run / blocked / deferred (บอกตรงๆ ไม่ลดสโคปเงียบๆ)
+
+- **`G4-11` (auto tick-loop integration + Unity UI)** — `blocked`/deferred
+  โดยเจตนา: ทุก primitive ที่ต้องใช้ (`TripDemandGenerator`,
+  `NetworkDemandAssignment`, `LinkQueueSimulator`, `SignalInstance`,
+  `IncidentEngine`, `IncidentConditions`) implement+test เสร็จและเรียก
+  จาก `WorldState` ได้แล้ว (G4-10) แต่ `WorldState.SimulateTick()` ยัง
+  ทำแค่ clock + Traffic RNG draw เหมือน G3 เดิม **ไม่มี** gameplay loop
+  ไหนเรียก demand generation -> link assignment -> queue step -> signal
+  step -> incident risk evaluation โดยอัตโนมัติทุก tick จาก real
+  noise/congestion/hour-of-day ยัง — เป็นการตัดสินใจจัดการความเสี่ยง
+  (ต่อสายอัตโนมัติแบบเต็มระบบในเวลาจำกัดเสี่ยงบั๊ก integration ที่ตรวจ
+  ไม่ทันในรอบนี้) ไม่ใช่ blocker ภายนอก — dependency-ready เต็มที่สำหรับ
+  session ถัดไป
+- **Road works ยังไม่ผูกกับ `PlanningEngine`'s budget flow** —
+  `WorldState.AddRoadWorksZone` เป็น direct mutation ไม่ผ่าน
+  reserve/pay-milestone เหมือนโครงการอื่น (ยังไม่มี
+  `ProjectKind.RoadWorks`) — capacity degradation mechanism เองทำงาน
+  และทดสอบสมบูรณ์แล้ว (G4-04) แค่ยังไม่ต่อกับระบบเงิน
+- **Bus/signal/incident ยังไม่มี Unity-side UI** — เหมือนทุก session
+  ก่อนหน้า ไม่มี Unity Editor ในสภาพแวดล้อมนี้ (ADR-0002)
+- **`NetworkDemandAssignment` เป็น all-or-nothing assignment** —
+  ไม่ใช่ capacity-aware equilibrium (ไม่มี rerouting ตาม congestion
+  ภายใน pass เดียว) บันทึกไว้ตรงๆ ใน ADR-0022 เป็นข้อจำกัดที่ตั้งใจ
+  ไม่ใช่ข้อบกพร่องที่ซ่อนไว้
+- **Unity Editor/Android/iOS/phone/tablet** — ยัง `not_run` ทุกแถว
+  เหมือนทุก session ก่อนหน้า (ADR-0002) ไม่เปลี่ยนแปลงใน session นี้
+- **แผนที่จริง** — ยังไม่ได้นำเข้า เหตุผลเดิมทุกประการ (ADR-0003)
+  session นี้ไม่แตะ Python pipeline เลย (pytest ยัง 67 passed เหมือนเดิม
+  โดยไม่ได้รันซ้ำเพื่อพิสูจน์อะไรใหม่ นอกจาก "ไม่พัง")
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน session ก่อนหน้าทุกประการสำหรับ Unity/Android/iOS/OSM data (ดู
+ADR-0002/0003) — session นี้ไม่มี blocker ใหม่ที่ agent เองแก้ไม่ได้
+`G4-11` ไม่ใช่ blocker ภายนอก เป็นงานที่เหลือให้ session ถัดไปทำต่อได้
+ทันทีโดยไม่ต้องรอมนุษย์
+
+### Next dependency-ready tasks
+
+- `G4-11` — auto tick-loop integration (demand->assignment->queue->
+  signal->incident ทุก tick) — dependency-ready ทันที ทุก primitive
+  พร้อมแล้ว
+- Road works เป็น committable `ProjectKind` ผ่าน `PlanningEngine` —
+  dependency-ready ทันที
+- `G3-10`/G2-0x — ยังรอ Unity Editor เหมือนเดิม
+- `G1-10` (real pilot audit) — ยัง blocked เหมือนเดิม รอข้อมูล OSM จริง
+
 ## Session 4 — 2026-09-23 (wave 4 / G3 first-playable simulation core)
 
 ### Task IDs และไฟล์ที่เปลี่ยน

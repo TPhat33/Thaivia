@@ -1,0 +1,11 @@
+MSBuild version 17.8.49+7806cbf7b for .NET
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.28

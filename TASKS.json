@@ -1,6 +1,6 @@
 {
   "$comment": "Backlog for Thailand Urban Repair. Gates follow IMPLEMENTATION_PLAN.th.md section 16. Status is only 'done' when a real command/test run backs it (see docs/evidence/). Updated at the end of each session per AGENTS.md.",
-  "updated_at": "2026-09-23",
+  "updated_at": "2026-09-21",
   "tasks": [
     {
       "id": "G0-01",
@@ -645,6 +645,209 @@
       "status": "blocked",
       "blocker": "Same as G2-01/G2-03..07: no Unity Editor in this environment (ADR-0002). Explicitly out of scope for this wave per the task brief ('simulation core only, pure C#, zero UnityEngine'); not attempted, not claimed.",
       "notes": "Deferred entirely, not narrowed quietly: this wave is pure C# (game/Assets/Scripts/Core/Simulation/**), zero UnityEngine, by explicit instruction. No Runtime/-side scripts were added for the G3 systems."
+    },
+    {
+      "id": "G4-00",
+      "gate": "G4",
+      "title": "Task Zero: fix AccessibilityGraphTests' collinear-fixture gap (supervisor-flagged)",
+      "dependencies": [
+        "G3-06"
+      ],
+      "acceptance_criteria": "A connected-graph fixture where network distance and straight-line distance are grossly different; a test asserting the result equals the detour and is NOT approximately the straight-line distance; a mutation-style control demonstrating a naive Euclidean stand-in reports a materially different answer on the same fixture.",
+      "status": "done",
+      "notes": "SimulationFixtures.BuildDetourRoadGraph: 2m straight-line gap, connected only via a ~502m detour around a bridge. AccessibilityGraphTests gains ConnectedGraphWithGrossDetour_NetworkDistance_MatchesTheDetourAndIsNotStraightLine (502m, asserted != 2m) and a control test computing what a naive Euclidean stand-in would report, asserting the two differ by >100m. 115 tests passed (113 + 2 new), no existing test weakened.",
+      "evidence": [
+        "game/Thaivia.Core.Tests/Simulation/SimulationFixtures.cs",
+        "game/Thaivia.Core.Tests/Simulation/AccessibilityGraphTests.cs",
+        "docs/evidence/g4-task0-dotnet-build.log",
+        "docs/evidence/g4-task0-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G4-01",
+      "gate": "G4",
+      "title": "Directed multimodal routing graph (Walk/Vehicle/Freight) honoring oneway, access tags, and turn restrictions",
+      "dependencies": [
+        "G3-06",
+        "W3-01"
+      ],
+      "acceptance_criteria": "Vehicle/Freight routing respects turn restrictions via RoadGraphIndex.EvaluateTurn + GameplayTurnPolicy (unlike G3's AccessibilityGraph, which deliberately does not); Walk mode ignores vehicle oneway/turn restrictions; per-mode access tags (foot/motor_vehicle/hgv) read from RoadEdge.AccessModes with unstated tags defaulting open as a documented assumption.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Routing.MobilityGraph: turn-aware Dijkstra over an expanded (node, arrivalWayId) state space. MobilityGraphTests.VehicleMode_RespectsTurnRestriction_TakesTheLegalDetour_WhereWalkModeIgnoresItAndGoesDirect is the flagship proof (Vehicle forced onto a 60m detour around a no-left-turn restriction; Walk takes the 20m direct path). See ADR-0017.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Routing/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/MobilityGraphTests.cs",
+        "docs/decisions/0017-g4-multimodal-routing-and-capacity-model.md",
+        "docs/evidence/g4-routing-queues-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G4-02",
+      "gate": "G4",
+      "title": "OD demand batches derived from cohorts (never per-agent spawning) + all-or-nothing network assignment",
+      "dependencies": [
+        "G4-01"
+      ],
+      "acceptance_criteria": "One OdBatch per cohort, sized from HouseholdCohort.PopulationCount x hourly trip-generation activity x a documented mode-share assumption; destination found via the real turn-aware Vehicle graph; assignment adds a batch's full VehicleCount to every way on its shortest path.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Demand.{TripDemandGenerator,NetworkDemandAssignment,OdBatch}. A real double-counting bug was caught and fixed during test-writing: a way spanning multiple polyline segments appeared more than once in WayIdsInOrder, double-adding a batch's arrivals (40 expected, 80 observed) until way ids were de-duplicated per batch. See ADR-0022. Not yet wired into WorldState's automatic tick loop -- a pure/read-only query callable like BuildAccessibilityGraph.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Demand/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/TripDemandGeneratorTests.cs",
+        "docs/decisions/0022-g4-od-demand-from-cohorts.md",
+        "docs/evidence/g4-demand-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G4-03",
+      "gate": "G4",
+      "title": "Finite-capacity network queues where congestion emerges from capacity, not a hand-tuned score",
+      "dependencies": [
+        "G4-01"
+      ],
+      "acceptance_criteria": "Per-directed-link (way + direction) queue where sustained arrivals exceeding capacity grow the backlog by exactly the shortfall per tick, and draining is exact when demand drops; capacity derives from the `lanes` tag (documented default when absent), never a separate tunable 'traffic score'.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Queues.{LinkKey,LinkCapacity,LinkQueueSimulator}. LinkQueueSimulatorTests.SustainedArrivalsExceedingCapacity_GrowsTheQueueByExactlyTheShortfallPerTick is the named proof.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Queues/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/LinkQueueSimulatorTests.cs",
+        "docs/decisions/0017-g4-multimodal-routing-and-capacity-model.md"
+      ]
+    },
+    {
+      "id": "G4-04",
+      "gate": "G4",
+      "title": "Road works degrade capacity WHILE under construction, not only on completion",
+      "dependencies": [
+        "G4-03"
+      ],
+      "acceptance_criteria": "A RoadWorksZone reduces a way's effective capacity only within [StartTick, StartTick+DurationTicks); ticks strictly before/after get full capacity; the resulting queue backlog is measurably worse during construction and fully recovers after.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.RoadWorks.RoadWorksZone + LinkCapacity.EffectiveCapacityVehPerTick. RoadWorksTests.RoadWorks_MeasurablyWorsensQueueingDuringConstruction_ComparedToBeforeAndAfter is the named proof (queue backlog 0 before, grows to 10 during, drains back to 0 after). Not yet wired into PlanningEngine's project/budget flow as a committable ProjectKind -- WorldState.AddRoadWorksZone is a direct mutation, deferred budget integration.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/RoadWorks/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/RoadWorksTests.cs"
+      ]
+    },
+    {
+      "id": "G4-05",
+      "gate": "G4",
+      "title": "Accessible pedestrian crossings that change walking routes, not just display",
+      "dependencies": [
+        "G4-01"
+      ],
+      "acceptance_criteria": "A crossing's AccessibleFlag gates whether a traveller with an accessible-path need can use it (MobilityGraph's requireAccessibleCrossings), producing a measurably different route from the general walking graph when the flag is false.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Crossings.PedestrianCrossing. CrossingsTests.InaccessibleCrossing_ShortensGeneralWalkingRoute_ButAccessibleNeedTravellerStillDetours is the named proof (general walk: 2m; accessible-need walk: still 32m).",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Crossings/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/CrossingsTests.cs",
+        "docs/decisions/0018-g4-signals-crossings-buses.md"
+      ]
+    },
+    {
+      "id": "G4-06",
+      "gate": "G4",
+      "title": "Bus routes on the network, bounded fleet, ridership from cohort batches",
+      "dependencies": [
+        "G4-01"
+      ],
+      "acceptance_criteria": "Round-trip schedule derived from real turn-aware vehicle-graph distance + dwell time (more dwell strictly lowers throughput/tick); VehicleCount is a hard finite cap; ridership drawn from cohort population batches, bounded by fleet capacity with overflow reported, never dropped.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Transit.{BusRoute,BusRouteScheduler,BusRidership}. BusRouteTests.IncreasingDwellTime_IncreasesRoundTripTicks_AndDecreasesThroughput and Ridership_IsDrawnFromCohortPopulationBatches_NotPerAgentSpawning are the named proofs.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Transit/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/BusRouteTests.cs"
+      ]
+    },
+    {
+      "id": "G4-07",
+      "gate": "G4",
+      "title": "Fixed-time signals first, adaptive second, with a measured trade-off",
+      "dependencies": [
+        "G4-03"
+      ],
+      "acceptance_criteria": "FixedTimeSignalPlan implemented and tested before AdaptiveSignalPlan per plan order; adaptive is demonstrably different from fixed (not a renamed copy); a real measured trade-off with numbers for both an improved and a worsened metric from the same lever, or an honest statement that none emerged.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Signals.{ISignalPlan,FixedTimeSignalPlan,AdaptiveSignalPlan,SignalIntersectionSimulator,SignalInstance}. Measured over a 4000-tick over-saturated intersection: adaptive lowers the busy approach's average queue 3991.00 -> 3440.37 (-13.8%) while raising the light approach's 2010.50 -> 2561.13 (+27.4%) vs fixed -- a genuine trade-off, not tuned until one appeared. See docs/evidence/g4-signals-tradeoff-measured.log and ADR-0018.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Signals/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/SignalsTests.cs",
+        "docs/decisions/0018-g4-signals-crossings-buses.md",
+        "docs/evidence/g4-signals-tradeoff-measured.log"
+      ]
+    },
+    {
+      "id": "G4-08",
+      "gate": "G4",
+      "title": "Gateway boundary conservation: integer-exact trip ledger + leaky-variant control",
+      "dependencies": [
+        "W3-01"
+      ],
+      "acceptance_criteria": "Generated == Completed + Queued exactly (integer, no tolerance) for every gateway across many ticks including a close/reopen window; closing a gateway backs demand up rather than deleting it; a deliberately leaky test-only variant that drops queued demand on close must violate the assertion, proving it bites.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Gateways.{TripLedgerSnapshot,GatewayFlow,GatewayNetwork}. GatewayConservationTests runs 500 ticks across two gateways with a close/reopen window (measured: outbound generated=1750, completed=1507, queued=243; inbound generated=1000, completed=1000, queued=0) and the leaky-variant control (LeakyGatewayVariant_ThatDropsQueuedDemandOnClose_ViolatesConservation...). This is the module the supervising engineer said would be scrutinised hardest. See ADR-0019.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Gateways/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/GatewayConservationTests.cs",
+        "docs/decisions/0019-gateway-trip-conservation.md",
+        "docs/evidence/g4-gateway-conservation-measured.log"
+      ]
+    },
+    {
+      "id": "G4-09",
+      "gate": "G4",
+      "title": "Two-strand fictional incident system: condition-driven, rate-bounded, ethically constrained",
+      "dependencies": [
+        "G3-03",
+        "G3-05"
+      ],
+      "acceptance_criteria": "NightDisorder/StreetRacing risk computed only from generic environmental signals (hour/noise/congestion), never place identity; warnings before onset; cooldown enforced; response/prevention levers change real outcomes; hard bound on incident rate over a long run; triggering proven condition-driven not RNG-driven; no real person/business ever the wrongdoer, no place category inherently a problem.",
+      "status": "done",
+      "notes": "Thaivia.Core.Simulation.Mobility.Incidents.{IncidentStrand,IncidentPhase,IncidentConditions,IncidentThresholds,IncidentSite,IncidentEngine,IncidentLevers}. Measured: 2,778 incidents over 100,000 worst-case ticks vs theoretical max 2,858. Determinism proof: two RNG seeds (111 vs 999) over an identical risk time series produce an identical phase-transition sequence, only severity differs (19 vs 16). Reflection-based ethical control test asserts no public method in the namespace takes a BuildingArchetype parameter. See ADR-0020.",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Incidents/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/IncidentEngineTests.cs",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/IncidentConditionsTests.cs",
+        "docs/decisions/0020-g4-incident-system.md",
+        "docs/evidence/g4-incident-rate-bound-measured.log"
+      ]
+    },
+    {
+      "id": "G4-10",
+      "gate": "G4",
+      "title": "Wire G4 mobility state into WorldState; extend save format + structural hash; save round-trip test",
+      "dependencies": [
+        "G4-03",
+        "G4-04",
+        "G4-06",
+        "G4-07",
+        "G4-08",
+        "G4-09"
+      ],
+      "acceptance_criteria": "WorldState owns LinkQueues/GatewayFlows/RoadWorksZones/BusRoutes+ridership/Signals/IncidentSites; SaveGame/SaveSerializer cover all six; ComputeStructuralHash extended in the same commit; a save round-trip test proves every field survives exactly, captured mid-state (not a trivial resting state).",
+      "status": "done",
+      "notes": "MobilitySaveRoundTripTests.AllG4MobilityState_SurvivesASaveRestoreRoundTrip_FieldByField and TwoWorlds_SameSeedSameMobilityCommands_ProduceIdenticalStructuralHash. Gateway capacity derived from MapPack.Gateway.ExternalCapacityVehPerHour (a documented simulation_assumption), never hardcoded. SimulateTick still only advances clock + Traffic RNG draw as in G3 -- automatic per-tick advancement of these subsystems from live OD demand is deferred, not yet wired. See ADR-0021. 162 tests passed total (up from 113 baseline).",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs",
+        "game/Assets/Scripts/Core/Simulation/Save/",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/MobilitySaveRoundTripTests.cs",
+        "docs/decisions/0021-g4-worldstate-and-save-extension.md",
+        "docs/evidence/g4-mobility-save-roundtrip-measured.log",
+        "docs/evidence/g4-worldstate-wiring-dotnet-test.log"
+      ]
+    },
+    {
+      "id": "G4-11",
+      "gate": "G4",
+      "title": "G4 automatic tick-loop integration (live OD demand -> queues -> signals -> incidents each SimulateTick) and Unity-side UI",
+      "dependencies": [
+        "G4-10"
+      ],
+      "acceptance_criteria": "WorldState.SimulateTick automatically generates OD demand from cohorts each in-game hour, assigns it to links, advances queues/signals/incident risk from real noise/congestion state every tick, and renders in Unity.",
+      "status": "blocked",
+      "blocker": "Out of scope for this wave by time/risk management, not by an external blocker: the standalone modules (routing/queues/signals/incidents/gateways/demand) are each fully implemented and tested in isolation and wired into WorldState's persisted state (G4-10), but no gameplay loop yet calls them automatically every tick with live inputs (real per-tick noise/congestion/hour-of-day feeding IncidentConditions, live OD demand feeding LinkQueueSimulator every tick). Also blocked, same as G2-01..07/G3-10, on the absence of a Unity Editor in this environment for any rendering/UI work (ADR-0002).",
+      "notes": "Dependency-ready: every primitive it needs (TripDemandGenerator, NetworkDemandAssignment, LinkQueueSimulator, SignalInstance, IncidentEngine, IncidentConditions) already exists, tested, and is reachable from WorldState. This is the natural next task for a following session."
     }
   ]
 }
