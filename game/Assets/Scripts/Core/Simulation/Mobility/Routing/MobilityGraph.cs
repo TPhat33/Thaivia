@@ -56,7 +56,22 @@ public sealed class MobilityGraph
 
     public TravelMode Mode { get; }
 
-    public MobilityGraph(RoadGraph roadGraph, TravelMode mode, IReadOnlyList<PlannedRoadSegment>? extraSegments = null)
+    /// <param name="crossings">Player-committed pedestrian crossings
+    /// (only meaningful for <see cref="TravelMode.Walk"/> -- ignored for
+    /// Vehicle/Freight, since a crossing is a foot-traffic connector, not
+    /// a road). See <see cref="Crossings.PedestrianCrossing"/>.</param>
+    /// <param name="requireAccessibleCrossings">When true, a crossing is
+    /// only usable if its <see cref="Crossings.PedestrianCrossing.AccessibleFlag"/>
+    /// is set -- builds the graph a traveller with an accessible-path need
+    /// actually routes over, as distinct from the general walking graph
+    /// (false). See CrossingsTests for the test proving this changes which
+    /// routes are computed.</param>
+    public MobilityGraph(
+        RoadGraph roadGraph,
+        TravelMode mode,
+        IReadOnlyList<PlannedRoadSegment>? extraSegments = null,
+        IReadOnlyList<Crossings.PedestrianCrossing>? crossings = null,
+        bool requireAccessibleCrossings = false)
     {
         Mode = mode;
         _respectsOneway = mode != TravelMode.Walk;
@@ -110,14 +125,30 @@ public sealed class MobilityGraph
             }
         }
 
+        var syntheticWayId = -1L; // shared counter: connectors and crossings never collide with each other or with a real (>=1) way id.
+
         if (extraSegments is not null)
         {
-            var syntheticWayId = -1L;
             foreach (var segment in extraSegments)
             {
                 var wayId = syntheticWayId--;
                 AddStep(segment.FromNodeId, segment.ToNodeId, segment.LengthMeters, wayId);
                 AddStep(segment.ToNodeId, segment.FromNodeId, segment.LengthMeters, wayId);
+            }
+        }
+
+        if (crossings is not null && mode == TravelMode.Walk)
+        {
+            foreach (var crossing in crossings)
+            {
+                if (requireAccessibleCrossings && !crossing.AccessibleFlag)
+                {
+                    continue; // not usable by a traveller who needs an accessible path.
+                }
+
+                var wayId = syntheticWayId--;
+                AddStep(crossing.NodeAId, crossing.NodeBId, crossing.LengthMeters, wayId);
+                AddStep(crossing.NodeBId, crossing.NodeAId, crossing.LengthMeters, wayId);
             }
         }
     }
