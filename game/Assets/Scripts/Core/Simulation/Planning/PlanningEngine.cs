@@ -5,6 +5,8 @@ using System.Linq;
 using Thaivia.Core.Simulation.Accessibility;
 using Thaivia.Core.Simulation.Buildings;
 using Thaivia.Core.Simulation.Economy;
+using Thaivia.Core.Simulation.Mobility.Queues;
+using Thaivia.Core.Simulation.Mobility.RoadWorks;
 
 namespace Thaivia.Core.Simulation.Planning;
 
@@ -76,6 +78,31 @@ public static class PlanningEngine
         var delta = projectedScore - currentScore;
 
         return new ImpactRange(delta, delta - 5, delta + 5, "cohort_access_need_score_delta");
+    }
+
+    /// <summary>Pure: projects a road works zone's effect on its way's
+    /// per-tick throughput capacity (definite, from
+    /// <see cref="LinkCapacity.BaseCapacityVehPerTick"/> and the proposed
+    /// multiplier) -- but still returned as an <see cref="ImpactRange"/>,
+    /// never a bare number, because the actual queueing consequence
+    /// downstream (how much backlog this produces) depends on demand this
+    /// method does not observe, which is exactly the kind of prediction
+    /// uncertainty ImpactRange exists to carry (spec §12). Touches no RNG,
+    /// reserves no budget, registers nothing.</summary>
+    public static ImpactRange EstimateRoadWorksCapacityImpact(WorldState world, long wayId, double capacityMultiplierDuringConstruction)
+    {
+        var edge = world.RoadGraph.Edges.FirstOrDefault(e => e.WayId == wayId)
+            ?? throw new ArgumentException($"Way {wayId} does not exist in the road graph.", nameof(wayId));
+
+        var baseCapacity = LinkCapacity.BaseCapacityVehPerTick(edge);
+        var reducedCapacity = (int)Math.Floor(baseCapacity * capacityMultiplierDuringConstruction);
+        var delta = (double)(reducedCapacity - baseCapacity); // always <= 0.
+
+        // A small, documented uncertainty band -- same illustrative style
+        // as EstimateRelocationAccessImpact/EstimateNewRoadAccessImpact,
+        // not a statistically fitted interval.
+        const double band = 1.0;
+        return new ImpactRange(delta, delta - band, delta + band, "way_capacity_delta_veh_per_tick");
     }
 
     public static CommitResult CommitRelocation(WorldState world, BuildingRelocationDraft draft, LedgerAccountKind ledgerKind, IReadOnlyList<long> milestoneAmounts)
@@ -178,6 +205,65 @@ public static class PlanningEngine
         return new CommitResult(true, project, Array.Empty<string>());
     }
 
+    /// <summary>Commits a road-works construction zone through the same
+    /// reserve/pay-milestone/cancel budget flow as every other project
+    /// kind (see ADR-0023 -- this replaces WorldState.AddRoadWorksZone as
+    /// the player-facing path; that method remains for direct test/manual
+    /// setup only). The zone's construction window starts at the world's
+    /// CURRENT tick, so committing takes effect immediately, exactly like
+    /// a relocation's new location or a new road's segment do.</summary>
+    public static CommitResult CommitRoadWorks(WorldState world, RoadWorksDraft draft, LedgerAccountKind ledgerKind, IReadOnlyList<long> milestoneAmounts)
+    {
+        if (world.Projects.TryGetValue(draft.Id, out var existing) && existing.Status != ProjectStatus.Cancelled)
+        {
+            return new CommitResult(true, existing, Array.Empty<string>());
+        }
+
+        var failures = new List<string>();
+        var edge = world.RoadGraph.Edges.FirstOrDefault(e => e.WayId == draft.WayId);
+        if (edge is null)
+        {
+            failures.Add($"way {draft.WayId} does not exist in the road graph.");
+        }
+
+        if (draft.DurationTicks <= 0)
+        {
+            failures.Add("road works duration must be positive.");
+        }
+
+        if (draft.CapacityMultiplierDuringConstruction <= 0 || draft.CapacityMultiplierDuringConstruction > 1)
+        {
+            failures.Add("capacity multiplier during construction must be in (0, 1].");
+        }
+
+        ValidateMilestones(milestoneAmounts, draft.FixedCostThb, failures);
+
+        if (draft.FixedCostThb > world.Ledger.Available)
+        {
+            failures.Add($"insufficient available budget: need {draft.FixedCostThb}, have {world.Ledger.Available}.");
+        }
+
+        if (failures.Count > 0)
+        {
+            // Same discipline as every other Commit* method: every check
+            // above ran before any mutation below, so a failure here means
+            // nothing was applied -- budget, road-works zone list and
+            // revision are all exactly what they were before this call.
+            return new CommitResult(false, null, failures);
+        }
+
+        world.Ledger.Reserve(ledgerKind, draft.FixedCostThb);
+        world.AddRoadWorksZone(new RoadWorksZone(draft.Id, draft.WayId, world.Clock.CurrentTick, draft.DurationTicks, draft.CapacityMultiplierDuringConstruction, draft.Id));
+
+        var project = new CommittedProject(draft.Id, ProjectKind.RoadWorks, ledgerKind, draft.FixedCostThb, milestoneAmounts, paidMilestones: 0, totalPaid: 0, ProjectStatus.Reserved);
+        world.RegisterProject(project);
+        world.IncrementRevision();
+        world.AddDelta(new PlayerDelta(draft.Id, PlayerDeltaKind.RoadWorksProposal, DateTimeOffset.UtcNow,
+            $"Road works on way {draft.WayId} for {draft.DurationTicks} ticks (capacity x{draft.CapacityMultiplierDuringConstruction:F2})."));
+
+        return new CommitResult(true, project, Array.Empty<string>());
+    }
+
     /// <summary>Pays the next unpaid milestone in order. Throws (does not
     /// silently no-op) if the project is already Completed/Cancelled or if
     /// the requested index is not the next payable one -- paying the same
@@ -237,6 +323,19 @@ public static class PlanningEngine
         if (cancellationFeeThb > 0)
         {
             world.Ledger.ChargeDirect(project.LedgerKind, cancellationFeeThb);
+        }
+
+        if (project.Kind == ProjectKind.RoadWorks)
+        {
+            // Cancellation rule specific to this project kind: construction
+            // stops having effect from the moment of cancellation onward --
+            // the zone's window is truncated to end at the current tick
+            // rather than continuing to degrade capacity for a project that
+            // is no longer funded. Ticks already inside the window before
+            // cancellation keep whatever degradation already happened (the
+            // LinkQueueSimulator backlog they caused is real history, not
+            // rewritten), but no FUTURE tick is affected.
+            world.TruncateActiveRoadWorksZone(projectId, world.Clock.CurrentTick);
         }
 
         world.RegisterProject(project.WithCancelled());

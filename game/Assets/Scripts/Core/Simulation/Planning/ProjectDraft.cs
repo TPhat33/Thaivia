@@ -98,3 +98,33 @@ public sealed class NewRoadConnectorDraft : ProjectDraft
     public long FromNodeId { get; }
     public long ToNodeId { get; }
 }
+
+/// <summary>A temporary capacity-reducing construction zone on an
+/// EXISTING road_graph way, committed through the same budget flow as
+/// every other project kind (see ADR-0023 for why this replaced
+/// WorldState.AddRoadWorksZone as the player-facing path).
+/// <see cref="DurationTicks"/> starts counting from the world's CURRENT
+/// tick at commit time, not from an arbitrary future tick -- a road works
+/// project takes effect immediately on commit, the same way a relocation
+/// or new road takes effect immediately on commit.</summary>
+public sealed class RoadWorksDraft : ProjectDraft
+{
+    public RoadWorksDraft(
+        string id,
+        long baseWorldRevision,
+        long fixedCostThb,
+        ImpactRange predictedImpact,
+        long wayId,
+        long durationTicks,
+        double capacityMultiplierDuringConstruction)
+        : base(id, ProjectKind.RoadWorks, baseWorldRevision, fixedCostThb, predictedImpact)
+    {
+        WayId = wayId;
+        DurationTicks = durationTicks;
+        CapacityMultiplierDuringConstruction = capacityMultiplierDuringConstruction;
+    }
+
+    public long WayId { get; }
+    public long DurationTicks { get; }
+    public double CapacityMultiplierDuringConstruction { get; }
+}

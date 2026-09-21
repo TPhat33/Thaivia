@@ -9,6 +9,7 @@ public enum PlayerDeltaKind
     RoadRemovalProposal,
     BuildingRelocationProposal,
     BuildingDemolitionProposal,
+    RoadWorksProposal,
 }
 
 /// <summary>
