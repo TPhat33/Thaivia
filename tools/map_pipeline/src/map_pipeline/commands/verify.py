@@ -12,7 +12,7 @@ from pathlib import Path
 from map_pipeline import exit_codes
 from map_pipeline.config import ConfigError, load_pilot_area, validate_against_schema
 from map_pipeline.paths import cache_dir, schemas_dir
-from map_pipeline.pipeline.mappack import run_pipeline
+from map_pipeline.pipeline.mappack import compute_content_hash, run_pipeline
 from map_pipeline.pipeline.osm_parse import parse_osm_file
 from map_pipeline.pipeline.sourcelock import (
     canonical_lock_filename,
@@ -47,6 +47,17 @@ def run(args) -> int:
         print(f"thaivia verify: schema validation FAILED: {exc}")
         return exit_codes.GENERAL_ERROR
     print("thaivia verify: schema validation OK")
+
+    on_disk_payload_hash = compute_content_hash(pack["payload"])
+    if on_disk_payload_hash != pack["content_hash"]:
+        print(
+            "thaivia verify: MISMATCH -- the file's own content_hash does not match a hash of "
+            "its own payload (the file was tampered with or corrupted after baking)."
+        )
+        print(f"  content_hash field: {pack['content_hash']}")
+        print(f"  hash of payload:    {on_disk_payload_hash}")
+        return exit_codes.GENERAL_ERROR
+    print("thaivia verify: on-disk content_hash matches a hash of the on-disk payload (not tampered)")
 
     try:
         cfg = load_pilot_area().data
