@@ -77,6 +77,10 @@ public sealed class WorldState
     // _utilitySources above (not yet part of SaveGame persistence).
     private readonly Dictionary<string, Planning.InvestorProposal> _investorProposals = new();
 
+    // G6-09: fictional procurement/corruption cases. In-memory only, same
+    // stated scope gap as _utilitySources/_investorProposals above.
+    private readonly Dictionary<string, Storyline.CorruptionCase> _corruptionCases = new();
+
     // --- Precomputed, read-only topology indexes over RoadGraph (never
     // RoadGraph itself -- these are just lookup caches, rebuilt once per
     // WorldState instance since RoadGraph never mutates). Exist so
@@ -325,6 +329,18 @@ public sealed class WorldState
     /// <summary>Replace-not-mutate update for an existing proposal --
     /// only <see cref="Planning.InvestorProposalEngine"/> calls this.</summary>
     internal void ReplaceInvestorProposal(Planning.InvestorProposal proposal) => _investorProposals[proposal.Id] = proposal;
+
+    public IReadOnlyDictionary<string, Storyline.CorruptionCase> CorruptionCases => _corruptionCases;
+
+    /// <summary>Registers a new corruption case -- only
+    /// <see cref="Storyline.CorruptionCaseEngine.OpenCase"/> calls this
+    /// (it, not this method, validates the case against a real committed
+    /// project).</summary>
+    internal void AddCorruptionCase(Storyline.CorruptionCase corruptionCase) => _corruptionCases[corruptionCase.CaseId] = corruptionCase;
+
+    /// <summary>Replace-not-mutate update for an existing case -- only
+    /// <see cref="Storyline.CorruptionCaseEngine"/> calls this.</summary>
+    internal void ReplaceCorruptionCase(Storyline.CorruptionCase corruptionCase) => _corruptionCases[corruptionCase.CaseId] = corruptionCase;
 
     public long BusRidershipOf(string routeId) => _busRouteCumulativeRidership.TryGetValue(routeId, out var v) ? v : 0;
 

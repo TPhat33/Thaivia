@@ -1113,8 +1113,14 @@
         "G6-08"
       ],
       "acceptance_criteria": "A single scripted storyline (fictional characters/agency names only -- AGENTS.md rule 9: never a real person/business as the wrongdoer, never an accusatory link back to a real place) that surfaces through real CommittedProject/MoneyLedger irregularities (e.g. a milestone overpayment or a fabricated contractor) the player investigates and resolves; any asset recovery is a one-off ledger credit, never a recurring income mechanism (plan §12); a written note (docs, Thai prose) records that no real name/place is used and how that was checked.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Storyline/CorruptionCase.cs, CorruptionCaseStatus.cs, CorruptionCaseEngine.cs, ScriptedStoryline.cs",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (AddCorruptionCase/CorruptionCases, internal)",
+        "game/Thaivia.Core.Tests/Simulation/CorruptionCaseTests.cs (15 tests incl. reflection ethical control + positive/negative detector controls + no-location-marker check)",
+        "docs/decisions/0036-g6-corruption-storyline.md (Thai prose: fictional labels, how checked, no real law cited)",
+        "docs/evidence/g6-09-dotnet-build.log, docs/evidence/g6-09-dotnet-test.log (297 passed = 282 + 15 new)"
+      ]
     },
     {
       "id": "G6-10",
