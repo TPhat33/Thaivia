@@ -1,0 +1,36 @@
+# Evidence: congestion-aware vs all-or-nothing demand split
+# Captured by the supervising engineer during review of Session 7 (ADR-0028).
+# Reason: the reported split numbers had no evidence log, which AGENTS.md rule 5 requires.
+# Date (UTC): 2026-09-26 17:12
+# Command:
+#   cd game && dotnet test Thaivia.sln --filter "FullyQualifiedName~CongestionAwareAssignment|FullyQualifiedName~AllOrNothingAssignmentDistortion" --logger "console;verbosity=detailed"
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Thaivia.Core -> /home/user/Thaivia/game/bin/Debug/net8.0/Thaivia.Core.dll
+  Thaivia.Core.Tests -> /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+Test run for /home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.0 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+/home/user/Thaivia/game/Thaivia.Core.Tests/bin/Debug/net8.0/Thaivia.Core.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.4.5+1caef2f33e (64-bit .NET 8.0.31)
+[xUnit.net 00:00:00.34]   Discovering: Thaivia.Core.Tests
+[xUnit.net 00:00:00.41]   Discovered:  Thaivia.Core.Tests
+[xUnit.net 00:00:00.42]   Starting:    Thaivia.Core.Tests
+[xUnit.net 00:00:00.56]   Finished:    Thaivia.Core.Tests
+  Passed Thaivia.Core.Tests.Simulation.Mobility.AllOrNothingAssignmentDistortionTests.AllOrNothingAssignment_NeverShiftsDemandOntoAnIdleAlternateRoute_EvenAsTheShortRouteBacksUpWithoutBound [36 ms]
+  Passed Thaivia.Core.Tests.Simulation.Mobility.CongestionAwareAssignmentTests.CongestionAwareAssignment_DivertsAMeaningfulShareOfDemandOntoTheHighCapacityAlternative [52 ms]
+  Standard Output Messages:
+ Total demand over 200 ticks: 1200
+ Short/low-capacity way: 402 arrivals, ending backlog 2
+ Detour way 1: 798 arrivals; detour way 2: 798 arrivals
+ Detour share of total demand: 66.5 %
+  Passed Thaivia.Core.Tests.Simulation.Mobility.CongestionAwareAssignmentTests.CongestionAwareAssignment_IsFullyDeterministic_AcrossIndependentRunsOfTheSameScenario [21 ms]
+Test Run Successful.
+Total tests: 3
+     Passed: 3
+ Total time: 1.1737 Seconds
+
+# exit code: 0
