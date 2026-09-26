@@ -1105,8 +1105,13 @@
         "G5-05"
       ],
       "acceptance_criteria": "A pure-C# model of which areas are unlocked/in-progress/complete, reusing the G5-05 scenario-objective-progression discipline (no UI/Unity dependency in the model itself); an area's lock state is a pure function of the OTHER areas' recorded completion, never of wall-clock time or an un-auditable flag; unit tests drive multiple areas through the model without any rendering.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Progression/AreaDefinition.cs, AreaProgressStatus.cs, CountryProgression.cs",
+        "game/Thaivia.Core.Tests/Simulation/CountryProgressionTests.cs (10 tests incl. pure/deterministic + out-of-order-completion + no-wall-clock structural control)",
+        "docs/decisions/0032-g6-country-progression-model.md",
+        "docs/evidence/g6-10-dotnet-build.log, docs/evidence/g6-10-dotnet-test.log (246 passed = 236 + 10 new)"
+      ]
     },
     {
       "id": "G6-11",
