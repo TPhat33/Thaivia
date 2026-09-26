@@ -44,6 +44,21 @@ internal static class TwoRouteAssignmentFixtures
             new RoadGraphBoundary(new List<double> { 0, 0, 200, 150 }, 0, new Dictionary<string, int>()));
     }
 
+    /// <summary>Just node A/B and the short, low-capacity direct way --
+    /// no detour node/ways at all. Used by
+    /// <see cref="PlayerBuiltConnectorCongestionTests"/>, which adds the
+    /// high-capacity alternative as a player-built
+    /// <see cref="Accessibility.PlannedRoadSegment"/> instead of a second
+    /// real way, so the two test classes prove the same demand-split shape
+    /// for a source way vs. a player-built one.</summary>
+    public static RoadGraph BuildTwoRouteGraphShortWayOnly()
+    {
+        var nodes = new List<RoadGraphNode> { new(NodeA, 0, 0), new(NodeB, 200, 0) };
+        var edges = new List<RoadEdge> { BuildEdge(ShortLowCapacityWay, NodeA, NodeB, lanes: 1, (0, 0), (200, 0)) };
+        return new RoadGraph(nodes, edges, new HashSet<long>(), new List<TurnRestrictionRecord>(), new List<Gateway>(),
+            new RoadGraphBoundary(new List<double> { 0, 0, 200, 0 }, 0, new Dictionary<string, int>()));
+    }
+
     private static RoadEdge BuildEdge(long wayId, long fromNode, long toNode, int lanes, (double X, double Z) from, (double X, double Z) to)
     {
         var tags = new SourceTags(new Dictionary<string, string> { ["lanes"] = lanes.ToString() });

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Thaivia.Core.Simulation.Archetypes;
 using Thaivia.Core.Simulation.Buildings;
 using Thaivia.Core.Simulation.Cohorts;
@@ -64,11 +65,16 @@ public class TripDemandGeneratorTests
         var batches = new List<OdBatch> { new(SimulationFixtures.Node1, SimulationFixtures.Node5, TravelMode.Vehicle, VehicleCount: 40, CohortId: "cohort-1") };
         var arrivals = NetworkDemandAssignment.AssignToWaysAllOrNothing(vehicleGraph, batches);
 
-        // The path node1->node2 (way 101) -> node3->node4->node5 (way 102)
-        // -- the synthetic bridge connector's negative id is excluded.
+        // The path node1->node2 (way 101) -> the synthetic bridge
+        // connector (negative id, e.g. -1) -> node3->node4->node5 (way
+        // 102). ADR-0040: the connector's synthetic id is no longer
+        // excluded -- a player-built road carries the same recorded
+        // arrivals as a source way, so it can be charged real
+        // capacity/congestion too (see WorldState.ComputeCapacityByWayId).
         Assert.Equal(40, arrivals[101]);
         Assert.Equal(40, arrivals[102]);
-        Assert.DoesNotContain(arrivals.Keys, k => k < 0);
+        Assert.Contains(arrivals.Keys, k => k < 0);
+        Assert.Equal(40, arrivals[vehicleGraph.PlannedRoadSegmentWayIds.Keys.Single()]);
     }
 
     [Fact]
