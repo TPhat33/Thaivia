@@ -981,8 +981,14 @@
         "G1-09"
       ],
       "acceptance_criteria": "configs/ supports an area registry (id, bbox, CRS, driving side, acquire_budget) with a JSON Schema; `thaivia acquire/build/audit` take an --area <id> argument and operate on any registered area, not only th-bkk-pilot-001; existing th-bkk-pilot-001 behavior is unchanged (regression tests pass); new pytest coverage for at least 2 registered areas using synthetic fixtures (never presented as real coverage -- AGENTS.md rule 2).",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tools/map_pipeline/src/map_pipeline/config.py (load_area/resolve_area_config_path/registered_area_ids)",
+        "configs/areas/index.json, tools/map_pipeline/schemas/areas-index.schema.json",
+        "tests/test_area_registry.py (10 new tests), tests/test_config_schemas.py additions",
+        "docs/decisions/0029-g6-multi-area-config-registry.md",
+        "docs/evidence/g6-01-pytest-run.log (77 passed)"
+      ]
     },
     {
       "id": "G6-02",

@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 from map_pipeline import exit_codes
-from map_pipeline.config import ConfigError, load_pilot_area
+from map_pipeline.config import ConfigError, load_area
 from map_pipeline.paths import repo_root
 
 
@@ -23,7 +23,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--config",
         default="configs/pilot-area.json",
-        help="Path to pilot-area config (default: configs/pilot-area.json)",
+        help="Path to an area config (default: configs/pilot-area.json). Ignored if --area is given.",
+    )
+    p.add_argument(
+        "--area",
+        default=None,
+        help=(
+            "Registered area id from configs/areas/index.json (G6-01). "
+            "Default (omitted): th-bkk-pilot-001 via --config, unchanged from before this flag existed."
+        ),
     )
     p.add_argument("--pack", default=None, help="Path to a baked MapPack JSON file to audit")
     p.add_argument("--out", default="docs/data/pilot-audit.md", help="Output path for the audit markdown")
@@ -32,7 +40,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(args) -> int:
     try:
-        load_pilot_area()
+        load_area(args.area, args.config)
     except ConfigError as exc:
         print(f"thaivia audit: config error: {exc}")
         return exit_codes.GENERAL_ERROR

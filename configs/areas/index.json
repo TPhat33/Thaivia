@@ -1,0 +1,10 @@
+{
+  "$comment": "Area registry (G6-01, plan section 4/5). Lists every area the `thaivia acquire/build/audit` CLI can operate on via `--area <id>`. This mechanism generalizes the pipeline beyond the single hardcoded th-bkk-pilot-001 area; adding a real 2nd/3rd candidate area is G6-02, not this file's own job. Registering an area here is NOT a coverage or acquisition claim -- see each area's own config for coverage_status/coverage_status_reason.",
+  "areas": [
+    {
+      "id": "th-bkk-pilot-001",
+      "config_path": "configs/pilot-area.json",
+      "notes": "The original G1-G5 pilot area. Omitting --area (or passing --area th-bkk-pilot-001) must behave identically -- this is the back-compat contract G6-01 preserves."
+    }
+  ]
+}

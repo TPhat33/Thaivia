@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 
 from map_pipeline import exit_codes
-from map_pipeline.config import ConfigError, load_pilot_area, validate_against_schema
+from map_pipeline.config import ConfigError, load_area, validate_against_schema
 from map_pipeline.paths import cache_dir, repo_root, schemas_dir
 from map_pipeline.pipeline.mappack import run_pipeline
 from map_pipeline.pipeline.osm_parse import parse_osm_file
@@ -33,7 +33,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--config",
         default="configs/pilot-area.json",
-        help="Path to pilot-area config (default: configs/pilot-area.json)",
+        help="Path to an area config (default: configs/pilot-area.json). Ignored if --area is given.",
+    )
+    p.add_argument(
+        "--area",
+        default=None,
+        help=(
+            "Registered area id from configs/areas/index.json (G6-01). "
+            "Default (omitted): th-bkk-pilot-001 via --config, unchanged from before this flag existed."
+        ),
     )
     p.add_argument(
         "--source-lock",
@@ -50,7 +58,7 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(args) -> int:
     try:
-        cfg = load_pilot_area().data
+        cfg = load_area(args.area, args.config).data
     except ConfigError as exc:
         print(f"thaivia build: config error: {exc}")
         return exit_codes.GENERAL_ERROR

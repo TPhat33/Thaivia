@@ -19,12 +19,38 @@ def _load(path: Path) -> dict:
     [
         ("pilot-area.json", "pilot-area.schema.json"),
         ("sources.json", "sources.schema.json"),
+        ("areas/index.json", "areas-index.schema.json"),
     ],
 )
 def test_config_validates_against_schema(configs_dir, schemas_dir, config_name, schema_name):
     config = _load(configs_dir / config_name)
     schema = _load(schemas_dir / schema_name)
     jsonschema.validate(instance=config, schema=schema)
+
+
+def test_areas_index_registers_the_pilot_area_pointing_at_the_unchanged_config(configs_dir):
+    index = _load(configs_dir / "areas" / "index.json")
+    ids = [e["id"] for e in index["areas"]]
+    assert "th-bkk-pilot-001" in ids
+    pilot_entry = next(e for e in index["areas"] if e["id"] == "th-bkk-pilot-001")
+    assert pilot_entry["config_path"] == "configs/pilot-area.json"
+
+
+def test_every_registered_area_config_validates_against_the_area_schema(configs_dir, schemas_dir, repo_root):
+    index = _load(configs_dir / "areas" / "index.json")
+    schema = _load(schemas_dir / "pilot-area.schema.json")
+    ids = [e["id"] for e in index["areas"]]
+    assert len(ids) == len(set(ids)), "area ids in the registry must be unique"
+    for entry in index["areas"]:
+        area_cfg = _load(repo_root / entry["config_path"])
+        jsonschema.validate(instance=area_cfg, schema=schema)
+        assert area_cfg["map_id"] == entry["id"]
+        assert area_cfg["coverage_status"] in {
+            "UNVERIFIED",
+            "VERIFIED_SPARSE",
+            "VERIFIED_USABLE",
+            "VERIFIED_REJECTED",
+        }
 
 
 def test_pilot_area_matches_spec_defaults(configs_dir):

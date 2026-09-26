@@ -21,7 +21,7 @@ import argparse
 from pathlib import Path
 
 from map_pipeline import exit_codes
-from map_pipeline.config import ConfigError, load_pilot_area
+from map_pipeline.config import ConfigError, load_area
 from map_pipeline.paths import cache_dir
 from map_pipeline.pipeline.acquire_net import AcquireNetworkError, download_with_budget
 from map_pipeline.pipeline.sourcelock import (
@@ -37,7 +37,15 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--config",
         default="configs/pilot-area.json",
-        help="Path to pilot-area config (default: configs/pilot-area.json)",
+        help="Path to an area config (default: configs/pilot-area.json). Ignored if --area is given.",
+    )
+    p.add_argument(
+        "--area",
+        default=None,
+        help=(
+            "Registered area id from configs/areas/index.json (G6-01). "
+            "Default (omitted): th-bkk-pilot-001 via --config, unchanged from before this flag existed."
+        ),
     )
     p.add_argument(
         "--from-url",
@@ -63,7 +71,7 @@ def _link_or_copy(src: Path, dest: Path) -> None:
 
 def run(args) -> int:
     try:
-        cfg = load_pilot_area().data
+        cfg = load_area(args.area, args.config).data
     except ConfigError as exc:
         print(f"thaivia acquire: config error: {exc}")
         return exit_codes.GENERAL_ERROR

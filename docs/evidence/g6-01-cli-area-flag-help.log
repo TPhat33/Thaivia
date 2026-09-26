@@ -1,0 +1,16 @@
+usage: thaivia acquire [-h] [--config CONFIG] [--area AREA]
+                       [--from-url FROM_URL]
+                       [--from-local-file FROM_LOCAL_FILE]
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG       Path to an area config (default: configs/pilot-
+                        area.json). Ignored if --area is given.
+  --area AREA           Registered area id from configs/areas/index.json
+                        (G6-01). Default (omitted): th-bkk-pilot-001 via
+                        --config, unchanged from before this flag existed.
+  --from-url FROM_URL   Download a bounded extract from this URL (network
+                        path; honors acquire_budget)
+  --from-local-file FROM_LOCAL_FILE
+                        Ingest an already-obtained local .osm.pbf/.osm.xml
+                        (offline path)

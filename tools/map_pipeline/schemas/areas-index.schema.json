@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thaivia.local/schemas/areas-index.schema.json",
+  "title": "Area registry index",
+  "description": "Lists every area the `thaivia` CLI can operate on via `--area <id>` (G6-01, generalizing the single hardcoded th-bkk-pilot-001 area from G1-G5). Each entry's config_path points at a file validated against pilot-area.schema.json (the per-area schema; the filename predates this registry but the shape is already generic: id/bbox/CRS/driving_side/acquire_budget). Registering an area here is NOT a coverage or acquisition claim -- see that area's own config for coverage_status/coverage_status_reason.",
+  "type": "object",
+  "required": ["areas"],
+  "additionalProperties": true,
+  "properties": {
+    "areas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "config_path"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "minLength": 3
+          },
+          "config_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Repo-root-relative path to this area's config JSON (validated against pilot-area.schema.json)."
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}
