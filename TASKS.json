@@ -1061,8 +1061,15 @@
         "G4-06"
       ],
       "acceptance_criteria": "A utility service is modeled the same shape as bus/gateway capacity (a source with finite throughput + a network-distance reach, per plan §11's 'accessibility คำนวณจาก network'), feeding into CohortNeedsCalculator as a new or extended need; no utility is modeled as unlimited; unknown/unmodeled utility infrastructure in source data is unknown, not assumed absent (AGENTS.md rule 4); unit tests prove capacity exhaustion and reach cutoff the same way LinkQueueSimulator/GatewayFlow's do.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Utilities/UtilityKind.cs, UtilitySource.cs, UtilityCoverage.cs",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (AddUtilitySource, ComputeUtilityCoverageScore, real cohort-based demand aggregation)",
+        "game/Assets/Scripts/Core/Simulation/Cohorts/CohortNeeds.cs, CohortNeedsCalculator.cs (+Utilities field/overload, baseline-preserving)",
+        "game/Thaivia.Core.Tests/Simulation/UtilityCoverageTests.cs (17 tests incl. adversarial network-vs-Euclidean fixture and capacity exhaustion)",
+        "docs/decisions/0033-g6-utilities-capacity-reach-model.md",
+        "docs/evidence/g6-06-dotnet-build.log, g6-06-dotnet-test.log (263 passed = 246 + 17 new), g6-06-adversarial-and-capacity-measured.log"
+      ]
     },
     {
       "id": "G6-07",

@@ -21,16 +21,26 @@ public static class CohortNeedsCalculator
 {
     public const int BaselineSafety = 70;
 
-    public static CohortNeeds Compute(int noiseIndex, int accessibilityScore, int nearbyJobsReachable, int safety)
+    /// <summary>Documented baseline for <see cref="CohortNeeds.Utilities"/>
+    /// (G6-06), mirroring <see cref="BaselineSafety"/>'s precedent: used
+    /// by every overload below that is not given a real utility-coverage
+    /// score, i.e. "not modeled for this call site", never a claim that
+    /// coverage is actually good.</summary>
+    public const int BaselineUtilitiesCoverage = 100;
+
+    public static CohortNeeds Compute(int noiseIndex, int accessibilityScore, int nearbyJobsReachable, int safety, int utilitiesCoverage)
     {
         var sleep = Clamp(100 - noiseIndex);
         var access = Clamp(accessibilityScore);
         var economy = Clamp(nearbyJobsReachable * 5);
-        return new CohortNeeds(sleep, access, Clamp(safety), economy);
+        return new CohortNeeds(sleep, access, Clamp(safety), economy, Clamp(utilitiesCoverage));
     }
 
+    public static CohortNeeds Compute(int noiseIndex, int accessibilityScore, int nearbyJobsReachable, int safety) =>
+        Compute(noiseIndex, accessibilityScore, nearbyJobsReachable, safety, BaselineUtilitiesCoverage);
+
     public static CohortNeeds Compute(int noiseIndex, int accessibilityScore, int nearbyJobsReachable) =>
-        Compute(noiseIndex, accessibilityScore, nearbyJobsReachable, BaselineSafety);
+        Compute(noiseIndex, accessibilityScore, nearbyJobsReachable, BaselineSafety, BaselineUtilitiesCoverage);
 
     private static int Clamp(int value) => Math.Clamp(value, 0, 100);
 }

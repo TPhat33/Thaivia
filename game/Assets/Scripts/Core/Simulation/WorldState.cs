@@ -24,6 +24,7 @@ using Thaivia.Core.Simulation.Planning;
 using Thaivia.Core.Simulation.RandomStreams;
 using Thaivia.Core.Simulation.Save;
 using Thaivia.Core.Simulation.Scenario;
+using Thaivia.Core.Simulation.Utilities;
 using SimTime = Thaivia.Core.Simulation.Time;
 
 namespace Thaivia.Core.Simulation;
@@ -63,6 +64,14 @@ public sealed class WorldState
     private readonly Dictionary<string, long> _busRouteCumulativeRidership = new();
     private readonly List<SignalInstance> _signals = new();
     private readonly List<IncidentSite> _incidentSites = new();
+
+    // G6-06: utility service sources (water/power/waste). In-memory
+    // scenario setup only, like the rest of this block -- NOT YET part
+    // of SaveGame persistence (a stated scope gap, see ADR-0033: a save/
+    // load round trip loses registered UtilitySources, the same
+    // "documented gap, not silently pretended closed" discipline
+    // ADR-0031 used for NetworkDemandAssignment's synthetic-way-id gap).
+    private readonly List<UtilitySource> _utilitySources = new();
 
     // --- Precomputed, read-only topology indexes over RoadGraph (never
     // RoadGraph itself -- these are just lookup caches, rebuilt once per
@@ -271,11 +280,27 @@ public sealed class WorldState
     public IReadOnlyList<BusRoute> BusRoutes => _busRoutes;
     public IReadOnlyList<SignalInstance> Signals => _signals;
     public IReadOnlyList<IncidentSite> IncidentSites => _incidentSites;
+    public IReadOnlyList<UtilitySource> UtilitySources => _utilitySources;
 
     public void AddRoadWorksZone(RoadWorksZone zone) => _roadWorksZones.Add(zone);
     public void AddBusRoute(BusRoute route) => _busRoutes.Add(route);
     public void AddSignal(SignalInstance signal) => _signals.Add(signal);
     public void AddIncidentSite(IncidentSite site) => _incidentSites.Add(site);
+
+    /// <summary>Registers a utility source anchored at a real road_graph
+    /// node -- rejects a node id that is not actually in the loaded road
+    /// graph (never a fabricated location, mirroring
+    /// <see cref="PlanningEngine.CommitNewRoadConnector"/>'s node-
+    /// existence check).</summary>
+    public void AddUtilitySource(UtilitySource source)
+    {
+        if (!RoadNodeIds.Contains(source.NodeId))
+        {
+            throw new ArgumentException($"Utility source node id {source.NodeId} does not exist in the road graph.", nameof(source));
+        }
+
+        _utilitySources.Add(source);
+    }
 
     public long BusRidershipOf(string routeId) => _busRouteCumulativeRidership.TryGetValue(routeId, out var v) ? v : 0;
 
@@ -825,6 +850,94 @@ public sealed class WorldState
         var nearestJobNode = FindNearestJobNode(graph, building.NearestRoadNodeId, excludeBuildingSourceId: buildingSourceId);
         var distance = nearestJobNode is { } nodeId ? graph.ShortestDistanceMeters(building.NearestRoadNodeId, nodeId) : null;
         return AccessibilityNeed.ComputeScore(distance);
+    }
+
+    /// <summary>
+    /// G6-06: network-distance reach to the nearest <see cref="UtilityKind"/>
+    /// source, degraded by that source's current load-vs-capacity -- see
+    /// <see cref="Utilities.UtilityCoverage"/>'s doc comment for the exact
+    /// formula. Never a straight-line radius (reuses the same
+    /// <see cref="AccessibilityGraph"/> <see cref="ComputeAccessibilityScore"/>
+    /// does); never an unlimited source (every source's capacity is
+    /// consulted, no bypass path). Zero registered/reachable sources of
+    /// this kind score 0 -- "no data" per AGENTS.md rule 4, NOT "assumed
+    /// fine"; a caller that wants the documented no-utility-system-yet
+    /// BASELINE instead (e.g. an area where utilities are simply not
+    /// modeled at all) uses <see cref="CohortNeedsCalculator.BaselineUtilitiesCoverage"/>
+    /// directly rather than calling this method.
+    /// </summary>
+    public int ComputeUtilityCoverageScore(long buildingSourceId, UtilityKind kind)
+    {
+        if (!_buildingStates.TryGetValue(buildingSourceId, out var building))
+        {
+            throw new ArgumentException($"Unknown building source id {buildingSourceId}.", nameof(buildingSourceId));
+        }
+
+        var graph = BuildAccessibilityGraph();
+        var nearest = FindNearestUtilitySource(graph, building.NearestRoadNodeId, kind);
+        if (nearest is null)
+        {
+            return 0;
+        }
+
+        var distance = graph.ShortestDistanceMeters(building.NearestRoadNodeId, nearest.Value.NodeId);
+        var demand = ComputeUtilityDemandUnitsAtSource(graph, nearest.Value, kind);
+        return UtilityCoverage.ComputeScore(distance, demand, nearest.Value.CapacityUnitsPerTick);
+    }
+
+    /// <summary>The NETWORK-nearest registered source of <paramref name="kind"/>
+    /// to <paramref name="fromNodeId"/>, or null if none is registered at
+    /// all or none is reachable through the graph.</summary>
+    private UtilitySource? FindNearestUtilitySource(AccessibilityGraph graph, long fromNodeId, UtilityKind kind)
+    {
+        UtilitySource? best = null;
+        var bestDistance = double.PositiveInfinity;
+        foreach (var source in _utilitySources)
+        {
+            if (source.Kind != kind)
+            {
+                continue;
+            }
+
+            var d = graph.ShortestDistanceMeters(fromNodeId, source.NodeId);
+            if (d is { } value && value < bestDistance)
+            {
+                bestDistance = value;
+                best = source;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Aggregate demand units/tick assigned to
+    /// <paramref name="source"/>: every household cohort whose home is
+    /// NETWORK-nearest to THIS source among every registered source of
+    /// the same <see cref="UtilityKind"/> contributes its
+    /// <c>HouseholdCount</c> (one household = one demand unit/tick -- a
+    /// documented simulation_assumption, see <see cref="UtilitySource"/>'s
+    /// doc comment). A cohort not reachable from any source of this kind
+    /// contributes no demand to anything (it is simply unserved, which
+    /// its OWN <see cref="ComputeUtilityCoverageScore"/> call already
+    /// reflects as a 0 reach score).</summary>
+    private long ComputeUtilityDemandUnitsAtSource(AccessibilityGraph graph, UtilitySource source, UtilityKind kind)
+    {
+        long demand = 0;
+        foreach (var cohort in _cohorts.Values)
+        {
+            if (!_buildingStates.TryGetValue(cohort.HomeBuildingSourceId, out var home))
+            {
+                continue;
+            }
+
+            var nearestForCohort = FindNearestUtilitySource(graph, home.NearestRoadNodeId, kind);
+            if (nearestForCohort is { } s && s.NodeId == source.NodeId)
+            {
+                demand += cohort.HouseholdCount;
+            }
+        }
+
+        return demand;
     }
 
     /// <summary>Finds the job-bearing building's nearest road node closest
