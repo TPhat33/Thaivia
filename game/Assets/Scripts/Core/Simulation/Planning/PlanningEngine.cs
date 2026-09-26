@@ -283,7 +283,7 @@ public static class PlanningEngine
 
         var length = SegmentLength(world, draft.FromNodeId, draft.ToNodeId);
         world.Ledger.Reserve(ledgerKind, draft.FixedCostThb);
-        world.RegisterPlannedRoadSegment(new PlannedRoadSegment(draft.FromNodeId, draft.ToNodeId, length, draft.Id));
+        world.RegisterPlannedRoadSegment(new PlannedRoadSegment(draft.FromNodeId, draft.ToNodeId, length, draft.Id, draft.Preset));
 
         var project = new CommittedProject(draft.Id, ProjectKind.NewRoadConnector, ledgerKind, draft.FixedCostThb, milestoneAmounts, paidMilestones: 0, totalPaid: 0, ProjectStatus.Reserved);
         world.RegisterProject(project);

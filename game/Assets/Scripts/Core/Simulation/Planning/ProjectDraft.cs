@@ -79,7 +79,13 @@ public sealed class BuildingRelocationDraft : ProjectDraft
 
 /// <summary>Connects two EXISTING road-graph nodes with a new bidirectional
 /// segment (see Thaivia.Core.Simulation.Accessibility.PlannedRoadSegment's
-/// doc comment for the G3 scope decision behind "existing nodes only").</summary>
+/// doc comment for the G3 scope decision behind "existing nodes only").
+/// G6-05: the segment's lane assumption is a <see cref="Accessibility.RoadPreset"/>
+/// id, not a raw lane count -- the player picks from
+/// <see cref="Accessibility.RoadPresetCatalog"/>'s 2-3 named presets
+/// (plan §9: start from presets, not an arbitrary editor), never types a
+/// number, and this preset can never apply to an existing OSM-derived
+/// way's own `lanes` tag (see RoadPreset's doc comment).</summary>
 public sealed class NewRoadConnectorDraft : ProjectDraft
 {
     public NewRoadConnectorDraft(
@@ -88,15 +94,18 @@ public sealed class NewRoadConnectorDraft : ProjectDraft
         long fixedCostThb,
         ImpactRange predictedImpact,
         long fromNodeId,
-        long toNodeId)
+        long toNodeId,
+        Accessibility.RoadPreset preset = Accessibility.RoadPreset.Local)
         : base(id, ProjectKind.NewRoadConnector, baseWorldRevision, fixedCostThb, predictedImpact)
     {
         FromNodeId = fromNodeId;
         ToNodeId = toNodeId;
+        Preset = preset;
     }
 
     public long FromNodeId { get; }
     public long ToNodeId { get; }
+    public Accessibility.RoadPreset Preset { get; }
 }
 
 /// <summary>A temporary capacity-reducing construction zone on an

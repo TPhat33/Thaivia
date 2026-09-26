@@ -1042,8 +1042,16 @@
       "title": "Polyline road preset catalog (2-3 presets) for the existing NewRoadConnector flow",
       "dependencies": [],
       "acceptance_criteria": "2-3 named presets (e.g. soi/alley 1-lane, local 2-lane, arterial 4-lane) as inspectable data, each mapping to a lane count/capacity consistent with LinkCapacity's existing per-lane assumption; PlanningEngine's new-road-connector draft/commit flow accepts a preset id instead of only a raw lane count; a preset never silently overrides real OSM-derived lane tags on an EXISTING way (plan §9: 'ไม่จัด lane count จากภาพถนนหรือ name โดยไร้หลักฐาน') -- presets apply only to NEW player-drawn segments.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Accessibility/RoadPreset.cs, RoadPresetCatalog.cs (3 presets: Soi/Local/Arterial)",
+        "game/Assets/Scripts/Core/Simulation/Accessibility/PlannedRoadSegment.cs (+Preset field, default Local)",
+        "game/Assets/Scripts/Core/Simulation/Planning/ProjectDraft.cs (NewRoadConnectorDraft +preset param)",
+        "game/Assets/Scripts/Core/Simulation/Save/SavedRecords.cs, SaveSerializer.cs, WorldState.cs (backward-compatible save field)",
+        "game/Thaivia.Core.Tests/Simulation/RoadPresetTests.cs (15 new tests incl. save round-trip and missing-field back-compat)",
+        "docs/decisions/0031-g6-road-preset-catalog.md",
+        "docs/evidence/g6-05-dotnet-build.log, docs/evidence/g6-05-dotnet-test.log (236 passed = 221 + 15 new)"
+      ]
     },
     {
       "id": "G6-06",

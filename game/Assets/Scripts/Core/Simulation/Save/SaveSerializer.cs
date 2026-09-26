@@ -131,6 +131,7 @@ public static class SaveSerializer
                 writer.WriteNumber("to_node_id", s.ToNodeId);
                 writer.WriteNumber("length_meters", s.LengthMeters);
                 writer.WriteString("project_id", s.ProjectId);
+                writer.WriteString("preset", s.Preset);
                 writer.WriteEndObject();
             }
 
@@ -334,7 +335,12 @@ public static class SaveSerializer
                 JsonRequire.Int64(item, "from_node_id", itemPath),
                 JsonRequire.Int64(item, "to_node_id", itemPath),
                 JsonRequire.Double(item, "length_meters", itemPath),
-                JsonRequire.String(item, "project_id", itemPath)));
+                JsonRequire.String(item, "project_id", itemPath),
+                // G6-05: absent in any save written before this field
+                // existed -- default to Local (RoadPreset.Local), a
+                // stated assumption, not a recovered fact (AGENTS.md
+                // rule 4).
+                ReadOptionalPresetName(item)));
 
         var vacatedLots = JsonRequire.MapArray(JsonRequire.Array(root, "vacated_lots", path), "$.vacated_lots", (item, itemPath, _) =>
             new SavedVacatedLot(
@@ -439,5 +445,15 @@ public static class SaveSerializer
             busRoutes,
             signals,
             incidentSites);
+    }
+
+    /// <summary>G6-05: "preset" was added to planned_road_segments after
+    /// earlier saves already existed. Missing -&gt; the documented default
+    /// name "Local" (RoadPreset.Local), never a load failure and never
+    /// presented as recovered data.</summary>
+    private static string ReadOptionalPresetName(JsonElement item)
+    {
+        var value = JsonRequire.OptionalProperty(item, "preset");
+        return value.ValueKind == JsonValueKind.String ? value.GetString()! : nameof(Thaivia.Core.Simulation.Accessibility.RoadPreset.Local);
     }
 }

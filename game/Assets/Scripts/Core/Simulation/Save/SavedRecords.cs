@@ -74,18 +74,29 @@ public sealed class SavedProject
 
 public sealed class SavedRoadSegment
 {
-    public SavedRoadSegment(long fromNodeId, long toNodeId, double lengthMeters, string projectId)
+    public SavedRoadSegment(long fromNodeId, long toNodeId, double lengthMeters, string projectId, string preset)
     {
         FromNodeId = fromNodeId;
         ToNodeId = toNodeId;
         LengthMeters = lengthMeters;
         ProjectId = projectId;
+        Preset = preset;
     }
 
     public long FromNodeId { get; }
     public long ToNodeId { get; }
     public double LengthMeters { get; }
     public string ProjectId { get; }
+
+    /// <summary>G6-05: which <see cref="Thaivia.Core.Simulation.Accessibility.RoadPreset"/>
+    /// this segment was built with, by enum name. A save written before
+    /// G6-05 has no such field at all -- SaveSerializer reads it as the
+    /// documented default (Local) rather than failing to load, since
+    /// there is no way to recover what preset a pre-G6-05 save's road was
+    /// actually meant to be (see AGENTS.md rule 4: no data is "unknown",
+    /// not silently guessed as a fact -- this default is stated, not
+    /// hidden).</summary>
+    public string Preset { get; }
 }
 
 public sealed class SavedVacatedLot

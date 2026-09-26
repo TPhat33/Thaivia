@@ -13,4 +13,12 @@ namespace Thaivia.Core.Simulation.Accessibility;
 /// -- the base RoadGraph object from a loaded MapPack is never mutated or
 /// extended in place.
 /// </summary>
-public readonly record struct PlannedRoadSegment(long FromNodeId, long ToNodeId, double LengthMeters, string ProjectId);
+/// <param name="Preset">Which <see cref="RoadPreset"/> (G6-05) this
+/// segment was built with -- <see cref="RoadPresetCatalog"/> for its
+/// lane count/capacity. Defaults to <see cref="RoadPreset.Local"/> only
+/// for call sites that do not care about lane count at all (accessibility
+/// distance previews, which are preset-independent) or that are
+/// restoring a save written before G6-05 introduced this field (see
+/// SaveSerializer's ReadRoadSegments, documented as a stated assumption,
+/// never presented as a source fact).</param>
+public readonly record struct PlannedRoadSegment(long FromNodeId, long ToNodeId, double LengthMeters, string ProjectId, RoadPreset Preset = RoadPreset.Local);

@@ -187,7 +187,7 @@ public sealed class WorldState
 
         foreach (var s in save.PlannedRoadSegments)
         {
-            _plannedRoadSegments.Add(new PlannedRoadSegment(s.FromNodeId, s.ToNodeId, s.LengthMeters, s.ProjectId));
+            _plannedRoadSegments.Add(new PlannedRoadSegment(s.FromNodeId, s.ToNodeId, s.LengthMeters, s.ProjectId, Enum.Parse<Accessibility.RoadPreset>(s.Preset)));
         }
 
         foreach (var v in save.VacatedLots)
@@ -1035,7 +1035,7 @@ public sealed class WorldState
             _cohorts.Values.Select(c => new SavedCohort(c.Id, c.HomeBuildingSourceId, c.HouseholdCount, c.PeoplePerHousehold, c.JobsHeld)).ToList(),
             _buildingStates.Values.Select(b => new SavedBuilding(b.SourceId, b.Archetype.ToString(), b.LocalX, b.LocalZ, b.NearestRoadNodeId, b.JobsCount, b.Relocated)).ToList(),
             _projects.Values.Select(p => new SavedProject(p.Id, p.Kind.ToString(), p.LedgerKind.ToString(), p.FixedCostThb, p.MilestoneAmounts.ToList(), p.PaidMilestones, p.TotalPaid, p.Status.ToString())).ToList(),
-            _plannedRoadSegments.Select(s => new SavedRoadSegment(s.FromNodeId, s.ToNodeId, s.LengthMeters, s.ProjectId)).ToList(),
+            _plannedRoadSegments.Select(s => new SavedRoadSegment(s.FromNodeId, s.ToNodeId, s.LengthMeters, s.ProjectId, s.Preset.ToString())).ToList(),
             _vacatedLots.Select(v => new SavedVacatedLot(v.BuildingSourceId, v.OldLocalX, v.OldLocalZ, v.ProjectId)).ToList(),
             CaptureLinkQueues(),
             _gatewayFlows.Values.Select(g => new SavedGatewayFlow(
