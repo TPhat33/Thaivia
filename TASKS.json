@@ -1096,8 +1096,14 @@
         "G3-01"
       ],
       "acceptance_criteria": "A proposal (funding offer with conditions, e.g. a capped subsidy tied to committing a specific project kind within N ticks) is offered, accepted, or declined through the same transactional discipline as PlanningEngine (accept reserves/credits the integer MoneyLedger atomically, never a partial state); declining or letting a proposal expire has no side effect on the ledger; conditions are checked against real WorldState state, never faked as satisfied; unit tests cover accept, decline, expiry, and a condition-violated-so-funding-is-withdrawn path with real ledger numbers.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Planning/InvestorProposal.cs, InvestorProposalStatus.cs, InvestorProposalEngine.cs",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (AddInvestorProposal/InvestorProposals), PlayerDelta.cs (+InvestorProposalAcceptance)",
+        "game/Thaivia.Core.Tests/Simulation/InvestorProposalTests.cs (15 tests: accept/decline/expiry/condition-violated-withdrawal, real ledger numbers)",
+        "docs/decisions/0035-g6-investor-proposal-subsystem.md",
+        "docs/evidence/g6-08-dotnet-build.log, docs/evidence/g6-08-dotnet-test.log (282 passed = 267 + 15 new)"
+      ]
     },
     {
       "id": "G6-09",

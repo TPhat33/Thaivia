@@ -10,6 +10,12 @@ public enum PlayerDeltaKind
     BuildingRelocationProposal,
     BuildingDemolitionProposal,
     RoadWorksProposal,
+
+    /// <summary>G6-08: accepting an investor proposal, or that proposal's
+    /// funding later being withdrawn for a condition violation -- both
+    /// recorded through this same delta kind (see
+    /// Thaivia.Core.Simulation.Planning.InvestorProposalEngine).</summary>
+    InvestorProposalAcceptance,
 }
 
 /// <summary>

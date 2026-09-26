@@ -73,6 +73,10 @@ public sealed class WorldState
     // ADR-0031 used for NetworkDemandAssignment's synthetic-way-id gap).
     private readonly List<UtilitySource> _utilitySources = new();
 
+    // G6-08: investor proposals. In-memory only, same stated scope gap as
+    // _utilitySources above (not yet part of SaveGame persistence).
+    private readonly Dictionary<string, Planning.InvestorProposal> _investorProposals = new();
+
     // --- Precomputed, read-only topology indexes over RoadGraph (never
     // RoadGraph itself -- these are just lookup caches, rebuilt once per
     // WorldState instance since RoadGraph never mutates). Exist so
@@ -301,6 +305,26 @@ public sealed class WorldState
 
         _utilitySources.Add(source);
     }
+
+    public IReadOnlyDictionary<string, Planning.InvestorProposal> InvestorProposals => _investorProposals;
+
+    /// <summary>Registers a new investor proposal offer -- no ledger
+    /// effect at all (an offer is not funding; see
+    /// <see cref="Planning.InvestorProposalEngine.Accept"/> for the one
+    /// call that credits money).</summary>
+    public void AddInvestorProposal(Planning.InvestorProposal proposal)
+    {
+        if (_investorProposals.ContainsKey(proposal.Id))
+        {
+            throw new ArgumentException($"An investor proposal with id '{proposal.Id}' is already registered.", nameof(proposal));
+        }
+
+        _investorProposals[proposal.Id] = proposal;
+    }
+
+    /// <summary>Replace-not-mutate update for an existing proposal --
+    /// only <see cref="Planning.InvestorProposalEngine"/> calls this.</summary>
+    internal void ReplaceInvestorProposal(Planning.InvestorProposal proposal) => _investorProposals[proposal.Id] = proposal;
 
     public long BusRidershipOf(string routeId) => _busRouteCumulativeRidership.TryGetValue(routeId, out var v) ? v : 0;
 
