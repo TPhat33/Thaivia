@@ -1174,8 +1174,10 @@
         "G1-08"
       ],
       "acceptance_criteria": "A written analysis (Thai prose, docs/) of whether the distributed map packs constitute a Derivative Database or a Produced Work under ODbL, what obligations follow (attribution, share-alike scope, machine-readable source/offer mechanism), extending ADR-0004 rather than restating it; proposes a concrete, testable mechanism for the machine-readable release/source offer (plan §18: 'เสนอ machine-readable release/source offer ที่เหมาะสม'); explicitly states this is an analysis and proposal, not a legal sign-off.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "docs/decisions/0037-g6-odbl-mappack-distribution-analysis.md (Thai prose engineering analysis + proposal, explicitly not legal advice)"
+      ]
     },
     {
       "id": "G6-14",

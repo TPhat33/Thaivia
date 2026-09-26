@@ -1,5 +1,197 @@
 # Progress log
 
+## Session 8 — 2026-09-26 (wave 8 / G6 content: 9 of 10 pending tasks implemented)
+
+Session นี้ทำ 9 จาก 10 task ที่ session 7 ทิ้งไว้เป็น `pending` (ไม่มี
+blocker ภายนอก) — G6-01, G6-02, G6-04, G6-05, G6-06, G6-07, G6-08, G6-09,
+G6-10, G6-13 คือ 10 task ทั้งหมด ทำครบทั้ง 10 (ดูรายละเอียดต่อ task
+ด้านล่าง) commit แยกเป็น task ละ 1 commit ทั้งหมด push ทุก 2-3 commit
+ตามที่สั่ง **ไม่แตะ Unity project scaffolding, `.meta` ใดๆ, หรือ
+`game/Assets/Scripts/Runtime/` เลยแม้แต่บรรทัดเดียว** (ตรวจด้วย
+`git diff --name-only` เทียบ commit ก่อนเริ่ม session — ไม่พบไฟล์ในหมวด
+ต้องห้ามเหล่านี้เลย) เพราะเจ้าของโปรเจกต์กำลังตั้ง Unity Editor project
+คู่ขนานอยู่จริงตามที่บรีฟระบุ
+
+### G6-01 — Area registry (`configs/areas/index.json`)
+
+`map_pipeline` generalize จาก `th-bkk-pilot-001` ตัวเดียวเป็น N พื้นที่
+ผ่าน `--area <id>` ใหม่ ที่ `thaivia acquire/build/audit` ทุกตัว
+back-compat contract ชัด: ไม่ใส่ `--area` = ไม่แตะ registry เลย (พิสูจน์
+ด้วย fixture ที่ไม่มี `configs/areas/` อยู่เลยยังใช้งานได้) ADR-0029
+เก็บเหตุผลออกแบบ pytest ใหม่ 10 ตัว (`tests/test_area_registry.py`) รวม
+77 (67 เดิม + 10 ใหม่)
+
+### G6-02 — Candidate area ที่ 2/3 (UNVERIFIED)
+
+`configs/areas/th-bkk-candidate-002.json`/`003.json` — bbox สมมติฐาน
+เท่านั้น ไม่มีการ acquire จริง `coverage_status: UNVERIFIED` พร้อมเหตุผล
+`docs/data/candidate-areas-rationale.md` อธิบาย rationale (canal/
+old-town access mix, arterial/market congestion mix) และย้ำ scope
+ceiling ไม่ใช่ quota ตรงๆ
+
+### G6-04 — BuildingArchetype 8 → 12 (หยุดที่ขอบล่างของ ceiling 12-16)
+
+เพิ่ม Hospital/Hotel/Warehouse/ConvenienceStore แต่ละตัวมี DayProfile ที่
+พิสูจน์ shape ต่างจากตัวเดิมจริง (ไม่ใช่ curve ซ้ำ) **พบและแก้ผลข้างเคียง
+จริงระหว่างทาง**: `WorldState.AssignArchetype`'s hash-mod-enum-length
+เปลี่ยน divisor จาก 8 เป็น 12 ทำให้ fixture id ที่เคย hash ไป Residential/
+Office เปลี่ยนไปจริง (`SimulationFixtures.ResidentialBuildingId` 1000→
+Market, `BudgetConstrainedTradeOffTests.CohortABuildingId` 3000→Hospital)
+— แก้เป็น 1012/3013 ที่ยืนยันแล้วว่า hash ถูกต้อง ยืนยันด้วย `dotnet test`
+ก่อน/หลังแก้ constant (207/207 ผ่านเหมือนเดิมทุกตัวหลังแก้ ไม่ใช่ partial
+fix) — ADR-0030 บันทึกบทเรียนนี้ไว้ตรงๆ **Machine-enforced ethical
+control**: `BuildingArchetypeEthicalControlTests` สแกน namespace ด้วย
+reflection ปฏิเสธ field ใดๆ ที่ map `BuildingArchetype` ตรงไปยัง scalar
+เปลือย พร้อม positive/negative detector self-test สองตัว รวม 221 (207+14)
+
+### G6-05 — Road preset catalog (Soi/Local/Arterial)
+
+`RoadPresetCatalog.CapacityVehPerTick` ใช้สูตรเดียวกับ
+`LinkCapacity.BaseCapacityVehPerTick` เป๊ะ (พิสูจน์ด้วยการเทียบตรงๆ กับ
+`RoadEdge` จริงที่มี `lanes` tag เท่ากัน) `NewRoadConnectorDraft` รับ
+`preset` param (default `Local` — call site เดิมทุกตัว compile ผ่านไม่
+ต้องแก้) `PlannedRoadSegment`/`SavedRoadSegment` เพิ่ม field `Preset`
+พร้อม backward-compat save reader (ตัด field ออกจาก JSON จริงก่อน reload
+เพื่อพิสูจน์ save เก่ายังโหลดได้) ADR-0031 บันทึก scope gap ตรงๆ:
+`NetworkDemandAssignment` ยังกรอง synthetic way id ทิ้งเหมือนเดิม (ADR-0022)
+— preset ยังไม่ถูกไปคิด congestion จริง รวม 236 (221+15)
+
+### G6-06 — Utilities เป็น network reach + finite capacity (ไม่ใช่ radius)
+
+`UtilityCoverage` reuse สูตรเดียวกับ `AccessibilityNeed` (network เท่านั้น
+ไม่มี fallback Euclidean) บวก capacity penalty ที่ลดคะแนนเท่านั้น ไม่เคย
+เพิ่ม **Adversarial fixture** (reuse `SimulationFixtures.BuildDetourRoadGraph`
+เดิมของ AccessibilityGraphTests — 2m straight-line, 502m network จริง):
+Euclidean stand-in ให้คะแนน >90, ค่าจริงจาก `world.
+ComputeUtilityCoverageScore` = **0** (502m > 400m reference) ต่างกัน
+มากกว่า 50 แต้มเป๊ะ — วัดจริงใน
+`docs/evidence/g6-06-adversarial-and-capacity-measured.log` Capacity
+exhaustion พิสูจน์ด้วย geometry/demand เดียวกัน (ครัวเรือน fix ที่ 5
+exact) เทียบ capacity 1000 vs 1 `CohortNeeds` ได้ field `Utilities` ใหม่
+(default 100 เหมือน `BaselineSafety`'s precedent เดิม) — default
+`ComputeCohortNeeds()` pipeline **ไม่ได้ต่อสายอัตโนมัติ** ตั้งใจ (ลดความ
+เสี่ยงต่อ golden test เดิม) รวม 263 (246+17)
+
+### G6-07 — Incident strand 2 → 4 (ยังจำกัดแน่นอน)
+
+`RoadworksGridlock` (congestion **สูง** ขับ risk — ตรงข้าม StreetRacing)
++ `IllegalWasteDumping` (peak hour ~3.5, ต่างจาก NightDisorder's ~1.5)
+ผ่าน ethical reflection control เดิมโดยอัตโนมัติ (ไม่ต้องเขียนใหม่) —
+re-prove rate bound ด้วยทั้ง 4 สายพร้อมกัน 100,000 tick worst-case:
+NightDisorder 944, StreetRacing 1099, RoadworksGridlock 1563,
+IllegalWasteDumping 848 ครั้ง ทุกสายอยู่ในขอบเขตทฤษฎีเป๊ะ ต่ำกว่า 2% ของ
+tick ทั้งหมด — `docs/evidence/g6-07-incident-rate-bound-4strands-measured.log`
+รวม 267 (263+4)
+
+### G6-08 — Investor-proposal subsystem (หนึ่งระบบย่อ)
+
+`InvestorProposal` capped fixed-amount + เงื่อนไขเดียว accept credit
+ledger ครั้งเดียวต่อการ accept ที่สำเร็จ (double-accept ถูก reject จริง)
+เงื่อนไขตรวจจาก `WorldState.Projects` จริงผ่าน baseline-count snapshot
+(ป้องกันโครงการที่ commit ก่อน accept มาช่วยผ่านย้อนหลัง) clawback ไม่
+force เงินสดติดลบเลย (ยึดแค่ `Min(owed, Available)` บันทึกจำนวนจริงที่ยึด
+ได้) รวม 282 (267+15)
+
+### G6-09 — คดีทุจริตแต่งขึ้นหนึ่งสาย ("the overpaid resurfacing milestone")
+
+`CorruptionCase` ผูกกับ `CommittedProject` จริงที่ผู้เล่น commit เอง
+`AllegedOverpaymentThb` cap ที่ `TotalPaid` จริงเสมอ ชื่อที่ใช้ทั้งสอง
+(`"Contractor Alpha"`, `"a local public-works sub-office"`) เป็น generic
+placeholder ที่ **ไม่ผูกสถานที่ใดเลย** — ตรวจด้วย test ที่ grep หา
+location marker จริง ไม่ใช่แค่ disclaimer **Machine-enforced control**:
+reflection test ปฏิเสธ method/property ใดๆ ใน namespace ที่รับ/คืนค่า
+`Thaivia.Core.MapPack` type — ทำให้ผูกกับ real source feature ไม่ได้เลย
+ทางโครงสร้าง (mirror G4/G6-04's pattern) พร้อม positive-control พิสูจน์
+detector ทำงานจริง `ResolveWithRecovery` ทำได้ครั้งเดียวต่อคดี (terminal
+ทันทีหลัง resolve) — ไม่มีทางเป็นรายได้ประจำ ไม่มีการอ้างกฎหมายจริงที่ไหน
+เลย ADR-0036 (ภาษาไทย) บันทึกการตรวจที่ทำจริง รวม 297 (282+15)
+
+### G6-10 — Country/area-select progress model (pure C#)
+
+`CountryProgression` reuse linear-sequencing เดียวกับ `ScenarioProgression`
+(G5-05) lock state เป็น pure function ของ recorded completion เท่านั้น —
+พิสูจน์ด้วย determinism test + **structural control ที่ grep source
+file ของตัวเองหา wall-clock API** (`DateTime`/`Stopwatch`/ฯลฯ) ถ้าเพิ่ม
+เข้ามาทีหลัง test นี้ fail ทันที G6-11 (Unity screen จริง) ยัง blocked
+เหมือนเดิม — เป็นแค่ model ที่มันจะอ่านจากในอนาคต รวม 246 (236+10)
+
+### G6-13 — วิเคราะห์ ODbL สำหรับแจกจ่าย MapPack (ADR-0037)
+
+**Engineering analysis + proposal เท่านั้น ไม่ใช่ legal advice** — สรุปว่า
+MapPack JSON file (bundled เข้า app) น่าจะเป็น **Derivative Database**
+ตาม ODbL (ต้อง share-alike/attribution กับตัวไฟล์เอง) ในขณะที่การ render
+บนจอเกมเป็น **Produced Work** (attribution เท่านั้น) เสนอ machine-readable
+`license` block ใน mappack schema + source-offer mechanism ที่ใช้ความ
+สามารถ deterministic re-derivation ที่มีอยู่แล้ว (`thaivia verify`) —
+**ยังไม่ implement โค้ด/schema ใดๆ ในรอบนี้** ระบุ checklist ที่ยังไม่ผ่าน
+สักข้อก่อน distribute จริง และย้ำว่าต้องให้เจ้าของ/ที่ปรึกษากฎหมายตรวจ
+ก่อนเสมอ ไม่ supersede ADR-0004 — ต่อยอดข้อ 3 ที่ ADR-0004 บอกไว้ว่า "ยัง
+ไม่เริ่ม"
+
+### ADR ใหม่ session นี้
+
+0029 (multi-area registry), 0030 (archetype expansion + hash-modulus
+lesson), 0031 (road preset catalog), 0032 (country progression model),
+0033 (utilities capacity/reach), 0034 (incident strand expansion), 0035
+(investor proposal), 0036 (corruption storyline, ภาษาไทย), 0037 (ODbL
+analysis, ภาษาไทย) — ไม่มี ADR ไหน supersede ADR เดิมที่ขัดแย้งกัน มีแต่
+ต่อยอด
+
+### ผลการทดสอบสุดท้าย (ทั้ง session)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g6-final-dotnet-build.log`, exit 0)
+`dotnet test game/Thaivia.sln` → **297 passed** (207 ก่อน session นี้ +
+90 ใหม่ข้าม 9 task: 14+15+17+4+15+15+10 = 90 พอดี —
+`docs/evidence/g6-final-dotnet-test.log`, exit 0)
+`./.venv/bin/pytest -q` → **77 passed** (67 ก่อน session นี้ + 10 ใหม่จาก
+G6-01 — `docs/evidence/g6-final-pytest.log`, exit 0)
+
+ยืนยันด้วย `git diff --name-only` เทียบจุดเริ่ม session: **ไม่มีไฟล์ใต้
+`game/Assets/Scripts/Runtime/`, ไม่มี `.meta`, ไม่มี `ProjectSettings/`,
+ไม่มี `Packages/manifest.json` ถูกแตะเลยแม้แต่บรรทัดเดียว**
+
+### สามทางแบ่งงาน (compiled+tested / written-but-not_run / deferred)
+
+**Compiled + tested**: ทั้ง 9 task (G6-01, 02, 04, 05, 06, 07, 08, 09, 10)
++ G6-13 (docs-only, ไม่มีโค้ดให้ test) — ทุกอย่างรัน `dotnet
+test`/`pytest` ผ่านจริงตามตัวเลขข้างบน
+
+**Written-but-not_run**: ไม่มีในรอบนี้ (ไม่แตะ
+`game/Assets/Scripts/Runtime/` เลย)
+
+**Deferred (บันทึกเหตุผลตรงๆ ไม่ใช่ปิดเงียบ)**:
+- **G6-03** (real acquisition พื้นที่ 2/3) — ยัง `blocked` เหมือนเดิม รอ
+  OSM source (ADR-0003)
+- **G6-11** (Unity country-select screen), **G6-12** (per-area content
+  authoring), **G6-14** (mobile compliance), **G6-15** (vertical-slice
+  gate) — ยัง `blocked` เหมือนเดิม (ไม่มี Unity Editor/2nd-3rd area data/
+  mobile device/owner sign-off)
+- Scope gap ที่แต่ละ task บันทึกไว้เอง: `UtilitySource`/
+  `InvestorProposal`/`CorruptionCase` ยัง in-memory เท่านั้น ไม่ persist
+  ใน SaveGame (ADR-0033/0035/0036); `NetworkDemandAssignment` ยังไม่คิด
+  congestion จาก road preset ใหม่ (ADR-0031); G6-13's schema proposal ยัง
+  ไม่ implement จริง (ADR-0037)
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน session ก่อนหน้าทุกประการสำหรับ Unity/Android/iOS/OSM data (ดู
+ADR-0002/0003) — session นี้ไม่มี blocker ใหม่ที่ agent เองแก้ไม่ได้ ไม่มี
+การติดตั้งระดับระบบ ไม่มี signing/production upload ไม่มี action ที่ทำลาย
+ข้อมูลกู้คืนไม่ได้
+
+### Next dependency-ready tasks
+
+- `G6-03`/`G1-10` — รอข้อมูล OSM จริง (ADR-0003)
+- `G2-01`/`G5-06`/`G6-11`/`G6-14`/`G6-15` — รอ Unity Editor/device
+  (ADR-0002)
+- `G6-12` — รอ `G6-03` (ไม่มี real per-area road graph ให้ author content ใส่)
+- งาน pure-logic ใหม่ที่ยังไม่มีใน backlog: ปิด scope gap ที่ ADR-0031/
+  0033/0035/0036/0037 ระบุไว้ (persist utility source/investor proposal/
+  corruption case ใน SaveGame; wire road preset เข้า congestion จริง;
+  implement G6-13's license schema proposal) — ยังไม่มี task id เป็นของ
+  ตัวเอง เสนอให้ session ถัดไปตั้งเป็น G6-16..20 ถ้าต้องการ track แยก
+
 ## Session 7 — 2026-09-26 (wave 7 / G6 debt-paydown: route caching, congestion-aware assignment, G6 backlog)
 
 Session นี้จ่ายหนี้สองก้อนที่ session 6 บันทึกไว้ตรงๆ ว่ายังไม่ได้แก้
