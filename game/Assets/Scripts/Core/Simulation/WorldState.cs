@@ -510,7 +510,7 @@ public sealed class WorldState
         var tick = Clock.CurrentTick;
 
         var vehicleGraph = GetOrBuildVehicleGraph();
-        var capacityByWayId = ComputeCapacityByWayId(tick);
+        var capacityByWayId = ComputeCapacityByWayId(tick, vehicleGraph);
         var priorQueueLengthByWay = LinkQueues.QueueLengths; // end of PREVIOUS tick's queue step -- SimulateTick has not stepped any queue yet this tick.
 
         var demandBatches = TripDemandGenerator.GenerateCommuteBatches(_cohorts.Values, _buildingStates, vehicleGraph, hourOfDay);
@@ -548,7 +548,13 @@ public sealed class WorldState
         {
             if (!capacityByWayId.TryGetValue(wayId, out var capacity))
             {
-                continue; // a synthetic (player-connector) id never reaches here -- NetworkDemandAssignment already filters those out.
+                // ADR-0040: a player-built connector's synthetic id DOES
+                // have a capacity entry now (see ComputeCapacityByWayId),
+                // so reaching here means a way id with genuinely no known
+                // capacity at all (should not happen for anything
+                // NetworkDemandAssignment could have produced) -- skip
+                // rather than guess, never crash the tick loop over it.
+                continue;
             }
 
             var arrivals = arrivalsByWay.TryGetValue(wayId, out var a) ? a : 0;
@@ -558,21 +564,40 @@ public sealed class WorldState
 
     /// <summary>This tick's effective vehicle-per-tick capacity for every
     /// way in RoadGraph (see <see cref="LinkCapacity.EffectiveCapacityVehPerTick"/>)
-    /// -- computed ONCE per tick and shared by both
+    /// PLUS every committed player-built <see cref="Accessibility.PlannedRoadSegment"/>
+    /// (ADR-0040 -- closes the gap ADR-0022/ADR-0031 documented: a
+    /// connector's synthetic negative way id used to have no capacity
+    /// entry at all, so it never queued and never entered the congestion
+    /// cost, making it look like free-flowing infinite-capacity road no
+    /// matter how much demand routed onto it). A player segment's
+    /// capacity comes from <see cref="Accessibility.RoadPresetCatalog.CapacityVehPerTick"/>
+    /// for the preset it was built with -- the same real, inspectable
+    /// number ADR-0031 already defined but left unused. Road-works
+    /// capacity reduction is deliberately NOT applied to a player segment
+    /// here (there is no <see cref="RoadEdge"/> for one to look up a
+    /// RoadWorksZone against) -- a stated, narrower scope than the real-way
+    /// path, not a silent gap (see ADR-0040).
+    ///
+    /// Computed ONCE per tick and shared by both
     /// <see cref="NetworkDemandAssignment.AssignToWaysCongestionAware"/>
     /// (as its congestion-cost denominator) and <see cref="StepLinkQueues"/>
     /// (as the queue's actual discharge capacity), so the two can never
-    /// disagree about what a way's capacity is this tick. O(edges), never
-    /// O(cohorts) -- this is exactly the kind of per-tick cost the g5
-    /// benchmark (ADR-0024) found was NOT the bottleneck (uncached Dijkstra
-    /// calls were); this dictionary build involves no graph search at
-    /// all.</summary>
-    private Dictionary<long, int> ComputeCapacityByWayId(long tick)
+    /// disagree about what a way's capacity is this tick. O(edges +
+    /// planned segments), never O(cohorts) -- this is exactly the kind of
+    /// per-tick cost the g5 benchmark (ADR-0024) found was NOT the
+    /// bottleneck (uncached Dijkstra calls were); this dictionary build
+    /// involves no graph search at all.</summary>
+    private Dictionary<long, int> ComputeCapacityByWayId(long tick, MobilityGraph vehicleGraph)
     {
-        var capacityByWayId = new Dictionary<long, int>(_edgesByWayId.Count);
+        var capacityByWayId = new Dictionary<long, int>(_edgesByWayId.Count + vehicleGraph.PlannedRoadSegmentWayIds.Count);
         foreach (var (wayId, edge) in _edgesByWayId)
         {
             capacityByWayId[wayId] = LinkCapacity.EffectiveCapacityVehPerTick(edge, tick, _roadWorksZones);
+        }
+
+        foreach (var (wayId, segment) in vehicleGraph.PlannedRoadSegmentWayIds)
+        {
+            capacityByWayId[wayId] = Accessibility.RoadPresetCatalog.CapacityVehPerTick(segment.Preset);
         }
 
         return capacityByWayId;

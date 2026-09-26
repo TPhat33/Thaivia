@@ -212,15 +212,30 @@ public static class NetworkDemandAssignment
     /// to the same way_id) -- de-duplicate PER ROUTE first, or a batch/
     /// slice would be double-counted onto the same way just because its
     /// path happened to cross more than one segment of it (see ADR-0022's
-    /// account of the real bug this caught). Negative ids are synthetic
-    /// player-connector/crossing ids with no real way_id to charge
-    /// capacity against.</summary>
+    /// account of the real bug this caught).
+    ///
+    /// Negative ids are synthetic (a <see cref="MobilityGraph"/>-assigned
+    /// id for a player-built <see cref="Accessibility.PlannedRoadSegment"/>,
+    /// for the vehicle graph these methods are always called with -- see
+    /// that graph's <c>PlannedRoadSegmentWayIds</c> doc comment for why a
+    /// pedestrian crossing's synthetic id never appears here instead). They
+    /// used to be filtered out entirely ("no real way_id to charge capacity
+    /// against"), which meant a player-built road carried demand that never
+    /// queued and never entered the congestion cost -- effectively
+    /// infinite, free-flowing capacity no matter how much traffic was
+    /// routed onto it. ADR-0040 closes that gap: a negative id is
+    /// de-duplicated exactly like a real one (never dropped), and
+    /// <see cref="Simulation.WorldState.ComputeCapacityByWayId"/> now gives
+    /// it a real capacity from <see cref="Accessibility.RoadPresetCatalog"/>,
+    /// so it participates in <see cref="AssignToWaysCongestionAware"/>'s
+    /// cost function and <see cref="Simulation.WorldState"/>'s per-tick
+    /// queue step the same way a source way does.</summary>
     private static IEnumerable<long> DeduplicateWayIds(IReadOnlyList<long> wayIdsInOrder)
     {
         var seen = new HashSet<long>();
         foreach (var wayId in wayIdsInOrder)
         {
-            if (wayId >= 0 && seen.Add(wayId))
+            if (seen.Add(wayId))
             {
                 yield return wayId;
             }

@@ -53,8 +53,26 @@ public sealed class MobilityGraph
     private readonly RoadGraphIndex _turnIndex;
     private readonly bool _respectsOneway;
     private readonly bool _respectsTurnRestrictions;
+    private readonly Dictionary<long, PlannedRoadSegment> _plannedRoadSegmentWayIds = new();
 
     public TravelMode Mode { get; }
+
+    /// <summary>Which synthetic (negative) way id this graph assigned to
+    /// each <paramref name="extraSegments"/> entry passed to the
+    /// constructor -- exposed so a caller that needs to charge a player-
+    /// built connector real capacity/congestion (see
+    /// <see cref="Demand.NetworkDemandAssignment"/> and
+    /// <see cref="Simulation.WorldState.ComputeCapacityByWayId"/>) can look
+    /// up which <see cref="PlannedRoadSegment"/> (and therefore which
+    /// <see cref="Accessibility.RoadPreset"/>) a given way id in a route
+    /// actually is, instead of re-deriving the assignment scheme
+    /// independently (which would silently drift out of sync the moment
+    /// this constructor's ordering ever changed). Empty for a graph built
+    /// without <paramref name="extraSegments"/>, and for
+    /// <see cref="TravelMode.Walk"/> graphs (pedestrian crossings, not
+    /// PlannedRoadSegments, occupy the negative-id space there instead --
+    /// see the constructor's crossings loop).</summary>
+    public IReadOnlyDictionary<long, PlannedRoadSegment> PlannedRoadSegmentWayIds => _plannedRoadSegmentWayIds;
 
     /// <param name="crossings">Player-committed pedestrian crossings
     /// (only meaningful for <see cref="TravelMode.Walk"/> -- ignored for
@@ -154,6 +172,7 @@ public sealed class MobilityGraph
                 var wayId = syntheticWayId--;
                 AddStep(segment.FromNodeId, segment.ToNodeId, segment.LengthMeters, wayId);
                 AddStep(segment.ToNodeId, segment.FromNodeId, segment.LengthMeters, wayId);
+                _plannedRoadSegmentWayIds[wayId] = segment;
             }
         }
 
