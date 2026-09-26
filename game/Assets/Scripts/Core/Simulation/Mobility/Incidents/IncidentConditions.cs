@@ -39,19 +39,65 @@ public static class IncidentConditions
         return Math.Clamp(nightFactor * 0.6 + openRoadFactor * 0.4, 0, 1);
     }
 
+    /// <summary>Risk in [0,1] that a construction-zone traffic backup could
+    /// begin, from how busy a daytime hour it is and how congested the
+    /// network already is right now -- the OPPOSITE congestion polarity
+    /// from <see cref="StreetRacingRisk"/> (which wants an open road):
+    /// this strand wants a JAMMED one. A generic infrastructure/traffic
+    /// condition, never framed as any contractor's or area's fault.
+    /// Deliberately takes no archetype/place-identity parameter.</summary>
+    public static double RoadworksGridlockRisk(int hourOfDay, double congestionRatio0To1)
+    {
+        var daytimeFactor = DaytimeRushFactor(hourOfDay);
+        var jammedFactor = Math.Clamp(congestionRatio0To1, 0, 1);
+        return Math.Clamp(daytimeFactor * 0.5 + jammedFactor * 0.5, 0, 1);
+    }
+
+    /// <summary>Risk in [0,1] that illegal dumping could occur, from how
+    /// deep into the quiet late-night window it is, how quiet
+    /// (low-noise) the area already is, and how empty
+    /// (low-congestion, i.e. unwatched) the streets currently are -- a
+    /// generic, unattributed infrastructure/environmental-crime pattern,
+    /// never tied to any real place/business/community. Peaks at a
+    /// DIFFERENT hour from <see cref="NightDisorderRisk"/> (see
+    /// <see cref="DeepNightFactor"/> vs <see cref="LateNightFactor"/>) so
+    /// the two late-night strands are not the same curve twice.
+    /// Deliberately takes no archetype/place-identity parameter.</summary>
+    public static double IllegalWasteDumpingRisk(int hourOfDay, int noiseIndex0To100, double congestionRatio0To1)
+    {
+        var deepNightFactor = DeepNightFactor(hourOfDay);
+        var quietFactor = 1.0 - Math.Clamp(noiseIndex0To100 / 100.0, 0, 1);
+        var unwatchedStreetFactor = 1.0 - Math.Clamp(congestionRatio0To1, 0, 1);
+        return Math.Clamp(deepNightFactor * 0.5 + quietFactor * 0.25 + unwatchedStreetFactor * 0.25, 0, 1);
+    }
+
     /// <summary>1.0 at the dead of night (around 01:00-02:00), smoothly
     /// falling to ~0 by mid-morning and staying ~0 through the afternoon --
     /// a documented simulation_assumption shape, not measured incident
     /// data (none exists).</summary>
-    private static double LateNightFactor(int hourOfDay)
+    private static double LateNightFactor(int hourOfDay) => TimeOfDayFactor(hourOfDay, peakHour: 1.5, widthHours: 3.5);
+
+    /// <summary>1.0 at the deepest, quietest part of the night (around
+    /// 03:30-04:00, LATER than <see cref="LateNightFactor"/>'s peak),
+    /// falling to ~0 by sunrise -- a documented simulation_assumption
+    /// shape, deliberately a different peak hour from NightDisorder's so
+    /// the two late-night strands are distinguishable.</summary>
+    private static double DeepNightFactor(int hourOfDay) => TimeOfDayFactor(hourOfDay, peakHour: 3.5, widthHours: 2.0);
+
+    /// <summary>1.0 at the middle of the daytime rush window (around
+    /// 12:00, a broad midday-to-afternoon peak covering typical
+    /// construction working hours), falling to ~0 overnight -- a
+    /// documented simulation_assumption shape, not measured incident
+    /// data.</summary>
+    private static double DaytimeRushFactor(int hourOfDay) => TimeOfDayFactor(hourOfDay, peakHour: 12.0, widthHours: 5.0);
+
+    private static double TimeOfDayFactor(int hourOfDay, double peakHour, double widthHours)
     {
         if (hourOfDay < 0 || hourOfDay > 23)
         {
             throw new ArgumentOutOfRangeException(nameof(hourOfDay));
         }
 
-        const double peakHour = 1.5;
-        const double widthHours = 3.5;
         var raw = Math.Abs(hourOfDay - peakHour);
         var circularDistance = Math.Min(raw, 24 - raw);
         return Math.Exp(-(circularDistance * circularDistance) / (2 * widthHours * widthHours));

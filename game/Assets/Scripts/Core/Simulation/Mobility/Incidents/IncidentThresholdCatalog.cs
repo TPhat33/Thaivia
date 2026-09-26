@@ -29,10 +29,28 @@ public static class IncidentThresholdCatalog
         DurationTicks: 20,
         CooldownTicks: 60);
 
+    /// <summary>G6-07. A shorter cooldown than the two G4 strands is
+    /// deliberate (a construction backup can recur sooner than a
+    /// nightlife-driven strand can), but still a real, nonzero floor --
+    /// never per-tick.</summary>
+    public static readonly IncidentThresholds RoadworksGridlock = new(
+        RiskThreshold: 0.55,
+        WarningLeadTicks: 8,
+        DurationTicks: 15,
+        CooldownTicks: 40);
+
+    public static readonly IncidentThresholds IllegalWasteDumping = new(
+        RiskThreshold: 0.6,
+        WarningLeadTicks: 12,
+        DurationTicks: 25,
+        CooldownTicks: 80);
+
     public static IncidentThresholds For(IncidentStrand strand) => strand switch
     {
         IncidentStrand.NightDisorder => NightDisorder,
         IncidentStrand.StreetRacing => StreetRacing,
+        IncidentStrand.RoadworksGridlock => RoadworksGridlock,
+        IncidentStrand.IllegalWasteDumping => IllegalWasteDumping,
         _ => throw new ArgumentOutOfRangeException(nameof(strand), strand, "Unhandled incident strand."),
     };
 }

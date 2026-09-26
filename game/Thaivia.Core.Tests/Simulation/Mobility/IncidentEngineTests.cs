@@ -199,6 +199,87 @@ public class IncidentEngineTests
         Assert.True(site.IncidentsTriggered < totalTicks / 20);
     }
 
+    /// <summary>G6-07: re-proves the hard rate bound with ALL FOUR
+    /// strands live simultaneously (not just one), each using its OWN
+    /// real <see cref="IncidentThresholdCatalog"/> thresholds rather than
+    /// the synthetic <see cref="Thresholds"/> constant the tests above
+    /// use -- risk pinned at the worst case (1.0) for every strand, for
+    /// 100,000 ticks each, so a regression that accidentally shares
+    /// state between sites/strands or drops a cooldown would show up
+    /// here even if it did not show up on a single strand alone.</summary>
+    [Fact]
+    public void IncidentRate_IsHardBoundedOverALongRun_AllFourStrandsLiveSimultaneously()
+    {
+        const long totalTicks = 100_000;
+        var strands = new[]
+        {
+            IncidentStrand.NightDisorder,
+            IncidentStrand.StreetRacing,
+            IncidentStrand.RoadworksGridlock,
+            IncidentStrand.IllegalWasteDumping,
+        };
+
+        var sites = strands.Select(s => new IncidentSite($"site-{s}", s)).ToList();
+
+        for (long tick = 0; tick < totalTicks; tick++)
+        {
+            foreach (var site in sites)
+            {
+                var thresholds = IncidentThresholdCatalog.For(site.Strand);
+                IncidentEngine.Step(site, risk: 1.0, thresholds); // worst case for every strand simultaneously.
+            }
+        }
+
+        foreach (var site in sites)
+        {
+            var thresholds = IncidentThresholdCatalog.For(site.Strand);
+            var theoreticalMax = totalTicks / thresholds.MinimumFullCycleTicks + 1;
+            _output.WriteLine(
+                $"{site.Strand}: IncidentsTriggered over {totalTicks} ticks = {site.IncidentsTriggered} "
+                + $"(theoretical max: {theoreticalMax}, MinimumFullCycleTicks: {thresholds.MinimumFullCycleTicks})");
+
+            Assert.True(site.IncidentsTriggered > 0, $"{site.Strand} must actually trigger at least once at risk=1.0, or this proves nothing.");
+            Assert.True(site.IncidentsTriggered <= theoreticalMax, $"{site.Strand} exceeded its theoretical max.");
+            Assert.True(site.IncidentsTriggered < totalTicks / 20, $"{site.Strand} triggered far more often than the 5%-of-ticks sanity bound.");
+        }
+    }
+
+    /// <summary>G6-07 shape control: RoadworksGridlock wants the OPPOSITE
+    /// congestion polarity from StreetRacing -- jammed roads raise its
+    /// risk, open roads do not.</summary>
+    [Fact]
+    public void RoadworksGridlockRisk_IsHigherWhenCongested_UnlikeStreetRacing()
+    {
+        const int daytimeHour = 12;
+        var jammed = IncidentConditions.RoadworksGridlockRisk(daytimeHour, congestionRatio0To1: 0.95);
+        var open = IncidentConditions.RoadworksGridlockRisk(daytimeHour, congestionRatio0To1: 0.05);
+        Assert.True(jammed > open, $"expected jammed ({jammed}) > open ({open})");
+    }
+
+    /// <summary>G6-07 shape control: IllegalWasteDumping peaks at a
+    /// DIFFERENT hour from NightDisorder (proving the two late-night
+    /// strands are not the same curve relabeled).</summary>
+    [Fact]
+    public void IllegalWasteDumpingRisk_PeaksAtADifferentHourThanNightDisorder()
+    {
+        // NightDisorder peaks around hour 1-2; IllegalWasteDumping around hour 3-4.
+        var dumpingAt2 = IncidentConditions.IllegalWasteDumpingRisk(hourOfDay: 2, noiseIndex0To100: 10, congestionRatio0To1: 0.1);
+        var dumpingAt4 = IncidentConditions.IllegalWasteDumpingRisk(hourOfDay: 4, noiseIndex0To100: 10, congestionRatio0To1: 0.1);
+        var nightDisorderAt2 = IncidentConditions.NightDisorderRisk(hourOfDay: 2, noiseIndex0To100: 10, congestionRatio0To1: 0.1);
+        var nightDisorderAt4 = IncidentConditions.NightDisorderRisk(hourOfDay: 4, noiseIndex0To100: 10, congestionRatio0To1: 0.1);
+
+        Assert.True(dumpingAt4 > dumpingAt2, $"expected IllegalWasteDumping risk to still be rising at hour 4 ({dumpingAt4}) vs hour 2 ({dumpingAt2})");
+        Assert.True(nightDisorderAt2 > nightDisorderAt4, $"expected NightDisorder risk to already be falling by hour 4 ({nightDisorderAt4}) vs hour 2 ({nightDisorderAt2})");
+    }
+
+    [Fact]
+    public void IllegalWasteDumpingRisk_IsLowerInDaytimeNoiseAndTraffic()
+    {
+        var deepNight = IncidentConditions.IllegalWasteDumpingRisk(hourOfDay: 4, noiseIndex0To100: 5, congestionRatio0To1: 0.05);
+        var midday = IncidentConditions.IllegalWasteDumpingRisk(hourOfDay: 13, noiseIndex0To100: 80, congestionRatio0To1: 0.8);
+        Assert.True(deepNight > midday, $"expected deep night ({deepNight}) > midday ({midday})");
+    }
+
     /// <summary>Structural ethical control (AGENTS.md rule 9): no public
     /// method anywhere in the Incidents namespace accepts a
     /// BuildingArchetype (or any archetype-shaped) parameter -- risk can

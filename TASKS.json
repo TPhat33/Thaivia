@@ -1079,8 +1079,14 @@
         "G4-09"
       ],
       "acceptance_criteria": "1-2 additional IncidentStrand values reusing IncidentEngine/IncidentThresholdCatalog's existing rate-bounding discipline (no strand may trigger faster than its MinimumFullCycleTicks, proven the same way IncidentEngineTests/IntegratedTickLoopTests prove it for the existing 2); every new strand stays fictional and never implicates a real place/community as inherently a source of disorder (AGENTS.md rule 9); the total event set stays a small, named, finite list -- never open-ended 'add more later without a cap'.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Incidents/IncidentStrand.cs (+RoadworksGridlock, IllegalWasteDumping)",
+        "game/Assets/Scripts/Core/Simulation/Mobility/Incidents/IncidentConditions.cs, IncidentThresholdCatalog.cs, WorldState.cs (wired)",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/IncidentEngineTests.cs (4 new tests incl. all-4-strands rate-bound re-proof)",
+        "docs/decisions/0034-g6-incident-strand-expansion.md",
+        "docs/evidence/g6-07-dotnet-build.log, g6-07-dotnet-test.log (267 passed = 263 + 4 new), g6-07-incident-rate-bound-4strands-measured.log"
+      ]
     },
     {
       "id": "G6-08",

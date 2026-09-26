@@ -613,6 +613,8 @@ public sealed class WorldState
             {
                 IncidentStrand.NightDisorder => IncidentConditions.NightDisorderRisk(hourOfDay, noise, congestion),
                 IncidentStrand.StreetRacing => IncidentConditions.StreetRacingRisk(hourOfDay, congestion),
+                IncidentStrand.RoadworksGridlock => IncidentConditions.RoadworksGridlockRisk(hourOfDay, congestion),
+                IncidentStrand.IllegalWasteDumping => IncidentConditions.IllegalWasteDumpingRisk(hourOfDay, noise, congestion),
                 _ => throw new InvalidOperationException($"Unhandled incident strand {site.Strand}."),
             };
 
