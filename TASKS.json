@@ -1,6 +1,6 @@
 {
   "$comment": "Backlog for Thailand Urban Repair. Gates follow IMPLEMENTATION_PLAN.th.md section 16. Status is only 'done' when a real command/test run backs it (see docs/evidence/). Updated at the end of each session per AGENTS.md.",
-  "updated_at": "2026-09-21",
+  "updated_at": "2026-09-26",
   "tasks": [
     {
       "id": "G0-01",
@@ -968,6 +968,186 @@
       "status": "blocked",
       "evidence": [],
       "notes": "Blocked on the same external dependency as every prior wave (ADR-0002): no Unity Editor, no Android/iOS devices in this environment. All the C#-only sub-parts of G5 that do not require Unity/devices (G5-01..G5-05) are done. Smallest human step: install Unity 6.3 LTS + a real license, open game/ as the root project, fix compiler errors in game/Assets/Scripts/Runtime/ (written, never compiled -- see game/README.md), then build to a connected Android/iOS device."
+    },
+    {
+      "id": "G6-01",
+      "gate": "G6",
+      "title": "Generalize the map_pipeline/CLI from one hardcoded pilot area to N declared areas",
+      "dependencies": [
+        "G1-01",
+        "G1-04",
+        "G1-06",
+        "G1-08",
+        "G1-09"
+      ],
+      "acceptance_criteria": "configs/ supports an area registry (id, bbox, CRS, driving side, acquire_budget) with a JSON Schema; `thaivia acquire/build/audit` take an --area <id> argument and operate on any registered area, not only th-bkk-pilot-001; existing th-bkk-pilot-001 behavior is unchanged (regression tests pass); new pytest coverage for at least 2 registered areas using synthetic fixtures (never presented as real coverage -- AGENTS.md rule 2).",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-02",
+      "gate": "G6",
+      "title": "Candidate bbox configs for a 2nd and 3rd real area toward the plan §4 3-area scope ceiling",
+      "dependencies": [
+        "G6-01"
+      ],
+      "acceptance_criteria": "Two additional configs/areas/*.json entries with a documented rationale (why this bbox: gameplay problem it can support, e.g. congestion/noise/access mix distinct from th-bkk-pilot-001) and coverage_status=UNVERIFIED (no acquisition performed yet); validates against G6-01's schema. Explicitly note in the config/doc that 3 areas is a scope CEILING (plan §4: 'ไม่ใช่เงื่อนไขที่บังคับให้เพิ่มแม้คุณภาพยังไม่ผ่าน'), not a quota -- fewer than 3 shipped areas is an acceptable outcome if quality does not clear the bar.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-03",
+      "gate": "G6",
+      "title": "Real acquisition + docs/data/pilot-audit-<area>.md for the 2nd and 3rd areas",
+      "dependencies": [
+        "G6-02",
+        "G1-01",
+        "G1-02"
+      ],
+      "acceptance_criteria": "Same acceptance bar as G1-10 for th-bkk-pilot-001, repeated per additional area: real source snapshot + hash, feature inventory, known/unknown breakdown, topology conflicts, retained/rejected counts -- real data only, no synthetic stand-in (AGENTS.md rule 2, real-data gate G1).",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Blocked on the same unresolved external dependency as G1-10: OSM source reachability (Geofabrik Thailand .osm.pbf / bounded Overpass query, per AGENTS.md rule 7) is unverified/blocked from this environment (ADR-0003). Needs either restored network access to an allowed source or a human-provided offline extract, plus a network/disk budget check before any download; a country-sized download additionally needs human approval per AGENTS.md."
+    },
+    {
+      "id": "G6-04",
+      "gate": "G6",
+      "title": "Expand BuildingArchetype/ActivityClockCatalog from 8 toward the plan §16 12-16 ceiling",
+      "dependencies": [],
+      "acceptance_criteria": "Each new archetype gets a named DayProfile (peak hour, width, peak level, nonzero baseline) with the same ethical-shape review Temple's got (BuildingArchetype's doc comment: no archetype's shape may imply a religious/ethnic/community land use is inherently a 'problem' source); unit tests cover every new archetype's shape the same way existing ones are covered. Explicitly note 12-16 is a scope CEILING (plan §4) -- stop adding archetypes once the 3 selected areas' actual gameplay needs are covered, never pad to hit 16.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-05",
+      "gate": "G6",
+      "title": "Polyline road preset catalog (2-3 presets) for the existing NewRoadConnector flow",
+      "dependencies": [],
+      "acceptance_criteria": "2-3 named presets (e.g. soi/alley 1-lane, local 2-lane, arterial 4-lane) as inspectable data, each mapping to a lane count/capacity consistent with LinkCapacity's existing per-lane assumption; PlanningEngine's new-road-connector draft/commit flow accepts a preset id instead of only a raw lane count; a preset never silently overrides real OSM-derived lane tags on an EXISTING way (plan §9: 'ไม่จัด lane count จากภาพถนนหรือ name โดยไร้หลักฐาน') -- presets apply only to NEW player-drawn segments.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-06",
+      "gate": "G6",
+      "title": "Utilities-as-capacity/reach subsystem (water/power/waste service coverage)",
+      "dependencies": [
+        "G4-06"
+      ],
+      "acceptance_criteria": "A utility service is modeled the same shape as bus/gateway capacity (a source with finite throughput + a network-distance reach, per plan §11's 'accessibility คำนวณจาก network'), feeding into CohortNeedsCalculator as a new or extended need; no utility is modeled as unlimited; unknown/unmodeled utility infrastructure in source data is unknown, not assumed absent (AGENTS.md rule 4); unit tests prove capacity exhaustion and reach cutoff the same way LinkQueueSimulator/GatewayFlow's do.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-07",
+      "gate": "G6",
+      "title": "Expand the bounded incident/event set beyond G4's 2 strands, staying capped",
+      "dependencies": [
+        "G4-09"
+      ],
+      "acceptance_criteria": "1-2 additional IncidentStrand values reusing IncidentEngine/IncidentThresholdCatalog's existing rate-bounding discipline (no strand may trigger faster than its MinimumFullCycleTicks, proven the same way IncidentEngineTests/IntegratedTickLoopTests prove it for the existing 2); every new strand stays fictional and never implicates a real place/community as inherently a source of disorder (AGENTS.md rule 9); the total event set stays a small, named, finite list -- never open-ended 'add more later without a cap'.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-08",
+      "gate": "G6",
+      "title": "Investor-proposal subsystem (plan §16 G6: one minor system)",
+      "dependencies": [
+        "G3-01"
+      ],
+      "acceptance_criteria": "A proposal (funding offer with conditions, e.g. a capped subsidy tied to committing a specific project kind within N ticks) is offered, accepted, or declined through the same transactional discipline as PlanningEngine (accept reserves/credits the integer MoneyLedger atomically, never a partial state); declining or letting a proposal expire has no side effect on the ledger; conditions are checked against real WorldState state, never faked as satisfied; unit tests cover accept, decline, expiry, and a condition-violated-so-funding-is-withdrawn path with real ledger numbers.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-09",
+      "gate": "G6",
+      "title": "One fictional procurement/corruption storyline tied to the project ledger",
+      "dependencies": [
+        "G6-08"
+      ],
+      "acceptance_criteria": "A single scripted storyline (fictional characters/agency names only -- AGENTS.md rule 9: never a real person/business as the wrongdoer, never an accusatory link back to a real place) that surfaces through real CommittedProject/MoneyLedger irregularities (e.g. a milestone overpayment or a fabricated contractor) the player investigates and resolves; any asset recovery is a one-off ledger credit, never a recurring income mechanism (plan §12); a written note (docs, Thai prose) records that no real name/place is used and how that was checked.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-10",
+      "gate": "G6",
+      "title": "Country/area-select progress-tracking data model (pure C#)",
+      "dependencies": [
+        "G5-05"
+      ],
+      "acceptance_criteria": "A pure-C# model of which areas are unlocked/in-progress/complete, reusing the G5-05 scenario-objective-progression discipline (no UI/Unity dependency in the model itself); an area's lock state is a pure function of the OTHER areas' recorded completion, never of wall-clock time or an un-auditable flag; unit tests drive multiple areas through the model without any rendering.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-11",
+      "gate": "G6",
+      "title": "Rendered country/area-select screen (Unity) using the G6-10 model",
+      "dependencies": [
+        "G6-10",
+        "G2-01"
+      ],
+      "acceptance_criteria": "A country screen lets the player pick among unlocked areas and see progress per plan §16's G6 row ('หน้าประเทศใช้เลือกฉากและติดตามความก้าวหน้า ไม่เปิดทุกพื้นที่พร้อมกัน') -- a locked area is visibly locked, never silently playable; Thai text renders correctly (same IME/shaping bar as G2-06).",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Blocked on the same external dependency as G2-01/G5-06: no Unity Editor in this environment. The underlying data model (G6-10) does not require Unity and can proceed independently."
+    },
+    {
+      "id": "G6-12",
+      "gate": "G6",
+      "title": "Per-area crossings/buses/signals/utilities content authoring for the 2nd and 3rd real areas",
+      "dependencies": [
+        "G6-03",
+        "G6-06",
+        "G4-04",
+        "G4-05"
+      ],
+      "acceptance_criteria": "Real stop/signal/utility-source placements referencing real road_graph node ids from each area's acquired MapPack (never a fabricated node id); the same invariants G4's fixtures prove (gateway conservation, bounded incident rate, deterministic hash) re-proven per area.",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Blocked on G6-03 (no real per-area road graph exists yet to place content against)."
+    },
+    {
+      "id": "G6-13",
+      "gate": "G6",
+      "title": "ODbL / map-distribution licence analysis for release (plan §18)",
+      "dependencies": [
+        "G1-08"
+      ],
+      "acceptance_criteria": "A written analysis (Thai prose, docs/) of whether the distributed map packs constitute a Derivative Database or a Produced Work under ODbL, what obligations follow (attribution, share-alike scope, machine-readable source/offer mechanism), extending ADR-0004 rather than restating it; proposes a concrete, testable mechanism for the machine-readable release/source offer (plan §18: 'เสนอ machine-readable release/source offer ที่เหมาะสม'); explicitly states this is an analysis and proposal, not a legal sign-off.",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "G6-14",
+      "gate": "G6",
+      "title": "Mobile store/build compliance check + owner sign-off checklist for release",
+      "dependencies": [
+        "G2-07",
+        "G5-06"
+      ],
+      "acceptance_criteria": "A checked-against-current-source list of Apple/Google submission requirements (Xcode/SDK version, target API level, 16KB native page-size compatibility per plan §18) with a re-verify-before-actual-submission note (these requirements move); a written checklist of what needs explicit owner approval before any signing/production upload (AGENTS.md's stop-list) -- never performed automatically.",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Blocked on the same external dependencies as G2-07/G5-06: no Mac/Xcode, no Android/iOS devices in this environment, AND signing/production upload requires explicit human/owner approval per AGENTS.md regardless of device availability."
+    },
+    {
+      "id": "G6-15",
+      "gate": "G6",
+      "title": "G6 vertical-slice integration across all 3 areas + device testing (plan §16 G6 gate)",
+      "dependencies": [
+        "G6-03",
+        "G6-11",
+        "G6-12",
+        "G6-14"
+      ],
+      "acceptance_criteria": "All 3 areas playable end to end (per plan §16's G6 row: '3 พื้นที่, content pipeline, investor/case ย่อ, release readiness'); licenses/map distribution, saves, privacy, and build/store checks pass; owner sign-off recorded.",
+      "status": "blocked",
+      "evidence": [],
+      "notes": "Transitively blocked on every unresolved G6 blocker above (no Unity Editor, no 2nd/3rd real area data, no mobile devices, no owner sign-off yet) -- this is the gate task, not independent work."
     }
   ]
 }

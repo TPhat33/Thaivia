@@ -1,5 +1,176 @@
 # Progress log
 
+## Session 7 — 2026-09-26 (wave 7 / G6 debt-paydown: route caching, congestion-aware assignment, G6 backlog)
+
+Session นี้จ่ายหนี้สองก้อนที่ session 6 บันทึกไว้ตรงๆ ว่ายังไม่ได้แก้
+(performance budget MISS จาก ADR-0024, all-or-nothing distortion จาก
+ADR-0022/0023) แล้วเขียน G6 backlog ที่ยังไม่มีอยู่เลยใน `TASKS.json`
+ไม่มีการลด scenario/tick rate/budget เพื่อให้ดูผ่าน และไม่มี test เดิมถูก
+แก้ให้อ่อนลงแม้แต่ตัวเดียว
+
+### Debt 1 — ปิด performance budget MISS ด้วย OD route cache (ADR-0027)
+
+ADR-0024 วินิจฉัยไว้ตรงๆ ว่า root cause ของ p95 MISS คือ >180 การเรียก
+Dijkstra ที่ไม่มี cache ต่อ tick (`TripDemandGenerator.FindNearestJobNode`
+คูณ cohort x job-building ทุกคู่ + bus walking-reach คูณ cohort x stop
+ทุกคู่) แก้ด้วยการเพิ่ม `_staticRouteCache` ให้ `MobilityGraph` เอง (ไม่ใช่
+dictionary แยกใน WorldState) — เพราะ `MobilityGraph` immutable หลังสร้าง
+เสร็จ ทำให้ cache **ไม่มีทาง stale โดยโครงสร้าง** ตราบใดที่ยังใช้ instance
+เดิมอยู่ ภาระ invalidation ทั้งหมดจึงอยู่ที่ "WorldState สร้าง instance
+ใหม่ถูกจังหวะหรือเปล่า"
+
+ขยาย invalidation signal ของ `WorldState.GetOrBuildVehicleGraph` จากเดิม
+(นับ `_plannedRoadSegments.Count` อย่างเดียว) เป็น "segment count + ชุด
+way id ที่ถูกปิดสนิท (hard closure, `RoadWorksZone` ที่
+`CapacityMultiplierDuringConstruction <= 0`)" — คำนวณชุดหลังใหม่ **ทุก
+tick** (O(active zones) เท่านั้น) เพราะ zone จบได้เองจากเวลาผ่านไปเฉยๆ
+โดยไม่มี method call ไหนถูกเรียก ทำให้ hard closure (multiplier 0 —
+`RoadWorksZone`'s doc comment เดิมพูดไว้ตรงๆ อยู่แล้วว่า "callers that
+truly need a hard closure can still pass 0.0") **มีผลจริงต่อ routing**
+เป็นครั้งแรก (ไม่ใช่แค่ต่อ capacity เหมือนก่อนหน้า) ส่วน soft degradation
+(multiplier > 0 — ทางเดียวที่ `PlanningEngine.CommitRoadWorks` ยอมให้ผ่าน
+จริง) ไม่ตัดถนนออกจาก routing เลย มีแค่ capacity ลด (พิสูจน์ด้วย negative
+control test) Gateway open/close **ไม่อยู่ใน invalidation signal** —
+ตรวจสอบแล้วตรงๆ ว่ามันไม่เคยเปลี่ยน routing เลย (พิสูจน์ตรงๆ ไม่ใช่แค่
+assert ในคอมเมนต์)
+
+Test ใหม่ 3 ตัวใน `RouteCacheInvalidationTests`: ปิดถนนเส้นเดียวที่เชื่อม
+cohort กับอาคารมีงานเส้นเดียวในโลกทดสอบ แล้วพิสูจน์ arrivals นิ่งสนิทตลอด
+active window และกลับมาวิ่งใหม่หลัง window หมดอายุตามธรรมชาติ — **นี่คือ
+test ที่จะ fail ถ้า cache ไม่เคยถูก invalidate เลย** ตามที่ supervisor สั่ง
+ตรงๆ; negative control สำหรับ soft degradation; และ test พิสูจน์ว่าปิด/
+เปิด gateway ไม่เปลี่ยน link arrivals เลยแม้แต่ตัวเดียวข้ามสอง world ที่
+seed เดียวกัน
+
+**ผลวัดได้ (scenario เดียวกับ ADR-0024 เป๊ะ — 8x8 grid synthetic, 64 node,
+112 edge, 32 building, 6 cohort, 4 signal, 1 bus route, 3 incident site, 1
+gateway, 9,000 tick soak, Release, 100-tick warm-up)**:
+
+```
+ก่อน (ADR-0024, session 6):  p50 ~5.2-5.7ms | p95 ~6.1-6.5ms | max ~36-41ms | mean ~5.2-5.7ms -- MISS
+หลัง Debt 1 (caching เท่านั้น): p50 0.1569ms | p95 0.2846ms | max 11.9563ms | mean 0.1583ms -- PASS
+```
+
+p95 ลดลง ~95% ยืนยันการวินิจฉัยเดิมว่า Dijkstra ที่ไม่มี cache คือ
+bottleneck จริง `max` ที่ยังเหลือ (~12-22ms ข้ามหลายรอบ) วินิจฉัยตรงด้วย
+`GC.CollectionCount` ต่อ tick: สอง tick ที่ช้าที่สุดตรงกับ GC gen0/gen1
+collection พอดี ส่วน tick ที่ช้ารองลงมากระจุกใน ~250 tick แรกหลัง
+warm-up สอดคล้องกับ JIT tier-up ที่ยังไม่จบ — ไม่ใช่ปัญหา algorithm
+(รายละเอียดเต็มใน ADR-0027, `docs/evidence/g6-benchmark-max-spike-diagnosis.log`)
+
+### Debt 2 — แทนที่ all-or-nothing ด้วย congestion-aware assignment (ADR-0028)
+
+`NetworkDemandAssignment.AssignToWays` (เดิม) เปลี่ยนชื่อเป็น
+`AssignToWaysAllOrNothing` (**เก็บไว้ ไม่ลบ** เป็น documented "before"
+baseline — `AllOrNothingAssignmentDistortionTests` ยังคง assertion เดิม
+เป๊ะ) `WorldState.SimulateTick` เรียก
+`AssignToWaysCongestionAware` แทน: แบ่ง `OdBatch.VehicleCount` เป็น 4
+slice แบบ integer-exact ประมวลผลตามลำดับ `CohortId` ordinal เสมอ
+(determinism) แต่ละ slice route ด้วย BPR-style cost
+(`length x (1 + 0.15 x (load/capacity)^4)`, ค่าคงที่ตำรามาตรฐาน —
+documented simulation_assumption) โดย `load` = backlog จริงจากปลาย tick
+ก่อนหน้า + ปริมาณที่ assignment ของ tick นี้ใส่ไปแล้วใน slice ก่อนหน้า
+**Congestion ยังคงเกิดจาก capacity เท่านั้น** — `LinkQueueSimulator.Step`
+ไม่ถูกแก้เลย มีแค่ "รถไปลงที่ way ไหน" ที่เปลี่ยน
+
+**ตัวเลขจริง เทียบ before/after บน fixture สองเส้นทางเดียวกันเป๊ะ** (demand
+6 คัน/tick, เส้นสั้น 2 คัน/tick capacity, เส้นอ้อม 20 คัน/tick capacity x2
+way, 200 tick):
+
+| | เส้นสั้น (arrivals) | เส้นสั้น backlog สุดท้าย | เส้นอ้อม (arrivals/way) | ส่วนแบ่งเส้นอ้อม |
+|---|---|---|---|---|
+| All-or-nothing (เดิม) | 1,200 | **800** (ไม่มีขอบเขต) | **0** | **0%** |
+| Congestion-aware (ใหม่) | 402 | **2** (คงที่) | **798** | **66.5%** |
+
+**Determinism**: double ใช้แค่จัดลำดับ edge ใน Dijkstra ครั้งเดียว ไม่เคย
+persist/hash เลย —
+`CongestionAwareAssignment_IsFullyDeterministic_AcrossIndependentRunsOfTheSameScenario`
+(ใหม่) และ `TwoWorlds_SameSeedSameIntegratedTickRun_ProduceIdenticalStructuralHash`
+(เดิม ไม่ได้แก้ assertion) ยังผ่านทั้งคู่ **Gateway conservation ยัง exact**
+— `GatewayConservation_HoldsAcrossThousandsOfTicks_...` (เดิม) รันผ่าน
+5,000 tick integrated เต็ม loop ด้วย assignment ใหม่: `Generated=25000,
+Completed=6600, Queued=18400` ตรงเป๊ะทั้ง inbound/outbound (leaky-variant
+control เดิมยังอยู่ ไม่ได้แตะ)
+
+**ผลวัดได้หลัง Debt 1+2 รวมกัน (scenario เดียวกันเป๊ะ)**:
+
+```
+p50: 0.1259 ms | p95: 0.7712 ms | max: 22.4025 ms | mean: 0.2584 ms -- PASS (budget p95 <= 5ms)
+```
+
+เทียบ Debt 1 อย่างเดียว: p95 ขยับจาก 0.2846ms เป็น 0.7712ms (เพิ่มขึ้นจริง
+~2.7x จาก sliceCount x cohortCount Dijkstra ที่ตั้งใจไม่ cache) — ยังต่ำ
+กว่า budget มาก (margin ~6.5x) รายงานตรงไปตรงมาทั้งสองจุดวัดตามที่
+supervisor สั่ง ไม่ใช่แค่จุดเดียว
+
+### G6 backlog (TASKS.json, ไม่มีมาก่อนเลย — ID หยุดที่ G5 ก่อนหน้านี้)
+
+เพิ่ม **15 task ใหม่ (G6-01..G6-15)** ครอบทุกหัวข้อจาก plan §4/§16: content
+pipeline หลายพื้นที่, 3 พื้นที่จริง (scope ceiling ไม่ใช่ quota — ระบุไว้
+ตรงๆ ใน G6-02/G6-04's acceptance criteria ตามที่ plan §4 สั่ง), archetype
+12-16 (ceiling เดียวกัน), polyline road preset, utilities-as-capacity/
+reach, bounded event set เพิ่มเติม, investor-proposal subsystem, fictional
+procurement storyline, country/area-select screen (แยก data model ที่ทำ
+ได้ตอนนี้ ออกจาก Unity rendering ที่ยัง blocked), ODbL/licence analysis,
+mobile store compliance + owner sign-off checklist, และ G6 vertical-slice
+gate task เอง
+
+**สถานะ: 10 `pending` (ทำได้ทันที ไม่มี blocker ภายนอก — pure C#/Python/
+docs) + 5 `blocked`** (แต่ละตัวระบุ blocker เป็นชื่อจริงใน `notes`: ไม่มี
+Unity Editor, ยังไม่ได้ acquire ข้อมูล OSM จริงพื้นที่ที่ 2/3, ไม่มี Mac/
+Xcode/Android/iOS device, ต้องมี owner approval ก่อน signing/production
+upload — ไม่มี task ไหนถูก mark `pending` ทั้งที่จริงๆ blocked) **ไม่มี
+task ไหนของ G6 ถูก implement ในรอบนี้ตามที่สั่ง — เขียนแค่ backlog**
+
+### ผลการทดสอบสุดท้าย (ทั้ง session)
+
+`dotnet build game/Thaivia.sln` → **0 warnings, 0 errors**
+(`docs/evidence/g6-dotnet-build.log`, exit 0) `dotnet test
+game/Thaivia.sln` → **207 passed** (202 ก่อน session นี้ + 5 ใหม่: 3
+route-cache-invalidation + 2 congestion-aware; `AllOrNothingAssignmentDistortionTests`
+ถูก refactor ให้ใช้ shared fixture แต่ยังเป็น 1 test เดิมเป๊ะ ไม่ใช่ test
+ใหม่ — สุทธิ 202+3+2=207, ไม่มี test เดิมพังเลยสักตัว —
+`docs/evidence/g6-dotnet-test-full.log`, exit 0)
+`./.venv/bin/pytest -q` ยัง **67 passed** เหมือนเดิม (ไม่แตะ Python
+pipeline เลยใน session นี้ — `docs/evidence/g6-pytest.log`, exit 0)
+
+### สามทางแบ่งงาน (compiled+tested / written-but-not_run / deferred)
+
+**Compiled + tested**: Debt 1 ทั้งหมด (route cache + closure/invalidation
++ 4 test), Debt 2 ทั้งหมด (congestion-aware assignment + 2 test), ทั้งสอง
+benchmark measurement point, gateway conservation re-proof — ทุกอย่างรัน
+`dotnet test` ผ่านจริง
+
+**Written-but-not_run**: ไม่มีในรอบนี้ (session นี้ไม่แตะ
+`game/Assets/Scripts/Runtime/` เลย — โค้ด Unity เดิมยังอยู่สถานะเดิม
+uncompiled เหมือนทุก session ก่อนหน้า)
+
+**Deferred (บันทึกเหตุผลตรงๆ)**:
+- **G6-01..G6-15 ทั้งหมด** — เขียนแค่ backlog ตามที่สั่งตรงๆ ไม่ implement
+  ในรอบนี้ (10 `pending` พร้อมเริ่ม session ถัดไปได้ทันที, 5 `blocked` ตาม
+  blocker ที่ระบุไว้)
+- **`G1-10`/`G6-03`** (real pilot audit พื้นที่ที่ 1/2/3) — ยัง blocked
+  เหมือนเดิม รอข้อมูล OSM จริง (ADR-0003)
+- **`G2-01`/`G5-06`/`G6-11`/`G6-14`/`G6-15`** — ยัง blocked เหมือนเดิม
+  รอ Unity Editor/Android/iOS device (ADR-0002)
+- **Unity Editor/Android/iOS/phone/tablet** — ยัง `not_run` ทุกแถว เหมือน
+  ทุก session ก่อนหน้า (ADR-0002) ไม่เปลี่ยนแปลงใน session นี้
+
+### Blockers และขั้นตอนมนุษย์ที่เล็กที่สุด
+
+เหมือน session ก่อนหน้าทุกประการสำหรับ Unity/Android/iOS/OSM data (ดู
+ADR-0002/0003) — session นี้ไม่มี blocker ใหม่ที่ agent เองแก้ไม่ได้ ไม่มี
+การติดตั้งระดับระบบ ไม่มี signing/production upload ไม่มี action ที่ทำลาย
+ข้อมูลกู้คืนไม่ได้
+
+### Next dependency-ready tasks
+
+- G6-01/G6-02/G6-04/G6-05/G6-06/G6-07/G6-08/G6-09/G6-10/G6-13 — ทั้ง 10
+  `pending` พร้อมเริ่มได้ทันที ไม่มี blocker ภายนอก
+- `G6-03`/`G1-10` — ยังรอข้อมูล OSM จริงเหมือนเดิม
+- `G2-01`/`G5-06`/`G6-11`/`G6-14`/`G6-15` — ยังรอ Unity Editor/device
+  เหมือนเดิม
+
 ## Session 6 — 2026-09-21 (wave 6 / G4 tick-loop integration + G5-track work)
 
 ### Task Zero (ปิด gap ที่ supervisor ระบุก่อนงานอื่นทั้งหมด)

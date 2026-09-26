@@ -146,7 +146,7 @@ ADR-0028
   `BusRouteScheduler`) ไม่ต้องแก้
 - `WorldState.StepLinkQueues`/`GetOrBuildVehicleGraph` เปลี่ยน signature
   ภายใน (private) — ไม่กระทบ public API
-- Test ใหม่: `RouteCacheInvalidationTests` (4 test) พิสูจน์ invalidation
+- Test ใหม่: `RouteCacheInvalidationTests` (3 test) พิสูจน์ invalidation
   contract ทั้งสามกรณี (road connector — ยืนยันซ้ำผ่าน test เดิมที่ยังผ่าน,
   road-works hard/soft closure, gateway open/close) ไม่มี test เดิมถูกแก้
   ให้อ่อนลง
