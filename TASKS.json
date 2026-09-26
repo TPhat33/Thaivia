@@ -1026,8 +1026,15 @@
       "title": "Expand BuildingArchetype/ActivityClockCatalog from 8 toward the plan §16 12-16 ceiling",
       "dependencies": [],
       "acceptance_criteria": "Each new archetype gets a named DayProfile (peak hour, width, peak level, nonzero baseline) with the same ethical-shape review Temple's got (BuildingArchetype's doc comment: no archetype's shape may imply a religious/ethnic/community land use is inherently a 'problem' source); unit tests cover every new archetype's shape the same way existing ones are covered. Explicitly note 12-16 is a scope CEILING (plan §4) -- stop adding archetypes once the 3 selected areas' actual gameplay needs are covered, never pad to hit 16.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Archetypes/BuildingArchetype.cs (Hospital/Hotel/Warehouse/ConvenienceStore, stopped at 12/16 ceiling)",
+        "game/Assets/Scripts/Core/Simulation/Archetypes/ActivityClockCatalog.cs (DayProfile per new archetype)",
+        "game/Thaivia.Core.Tests/Simulation/NoiseIndexAndActivityClockTests.cs (per-archetype shape tests)",
+        "game/Thaivia.Core.Tests/Simulation/BuildingArchetypeEthicalControlTests.cs (machine-enforced reflection control + positive/negative detector controls)",
+        "docs/decisions/0030-g6-archetype-taxonomy-expansion.md",
+        "docs/evidence/g6-04-dotnet-build.log, docs/evidence/g6-04-dotnet-test.log (221 passed = 207 + 14 new)"
+      ]
     },
     {
       "id": "G6-05",

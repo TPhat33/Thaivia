@@ -41,6 +41,35 @@ public static class ActivityClockCatalog
         [BuildingArchetype.Office] = new DayProfile(PeakHour: 14, WidthHours: 4, PeakLevel: 0.60, Baseline: 0.05),
         [BuildingArchetype.School] = new DayProfile(PeakHour: 10, WidthHours: 3, PeakLevel: 0.70, Baseline: 0.05),
         [BuildingArchetype.Retail] = new DayProfile(PeakHour: 18, WidthHours: 4, PeakLevel: 0.65, Baseline: 0.10),
+
+        // -- G6 additions -- same review discipline as the eight above:
+        // a real peak window, a genuinely low (never near-peak) baseline,
+        // and no archetype set to look "loud all day" as a stand-in for
+        // "this land use is a problem" (AGENTS.md rule 9).
+
+        // Hospital: near-flat, moderate service load around the clock
+        // (a wide "width" so the exponential falloff barely bites) --
+        // deliberately NOT modelled as quiet-then-spiking, because
+        // emergency/utility service load does not behave like a market's
+        // single rush. Its baseline is still below its already-modest
+        // peak, so it is never literally constant.
+        [BuildingArchetype.Hospital] = new DayProfile(PeakHour: 13, WidthHours: 10, PeakLevel: 0.45, Baseline: 0.30),
+        // Hotel: an evening check-in/dinner peak, moderate through the
+        // day, genuinely low overnight (guests sleeping) -- distinct
+        // shape from Residential's own evening peak (Hotel's baseline is
+        // lower and its peak narrower, since a hotel's public-facing
+        // activity is more concentrated than a household's).
+        [BuildingArchetype.Hotel] = new DayProfile(PeakHour: 19, WidthHours: 3.5, PeakLevel: 0.60, Baseline: 0.10),
+        // Warehouse: early-morning loading/dispatch peak, quiet
+        // overnight and quiet again by early afternoon -- a distinct
+        // time-of-day from SmallFactory's mid-day peak so the two don't
+        // just duplicate each other's shape.
+        [BuildingArchetype.Warehouse] = new DayProfile(PeakHour: 6, WidthHours: 2.5, PeakLevel: 0.70, Baseline: 0.10),
+        // ConvenienceStore: the flattest, lowest-amplitude profile of
+        // any archetype on purpose (small, frequent, quiet transactions
+        // across long hours) -- proves the catalog is not "every
+        // commercial archetype reads as loud".
+        [BuildingArchetype.ConvenienceStore] = new DayProfile(PeakHour: 20, WidthHours: 6, PeakLevel: 0.30, Baseline: 0.15),
     };
 
     public static HourlyActivity At(BuildingArchetype archetype, int hourOfDay)

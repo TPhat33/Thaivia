@@ -16,6 +16,10 @@ public class ActivityClockCatalogTests
     [InlineData(BuildingArchetype.Office)]
     [InlineData(BuildingArchetype.School)]
     [InlineData(BuildingArchetype.Retail)]
+    [InlineData(BuildingArchetype.Hospital)]
+    [InlineData(BuildingArchetype.Hotel)]
+    [InlineData(BuildingArchetype.Warehouse)]
+    [InlineData(BuildingArchetype.ConvenienceStore)]
     public void EveryHour_ProducesValuesWithinZeroToOne(BuildingArchetype archetype)
     {
         for (var hour = 0; hour < 24; hour++)
@@ -53,6 +57,66 @@ public class ActivityClockCatalogTests
         // score would have.
         Assert.True(hoursAboveModerate <= 4, $"Temple exceeded moderate noise in {hoursAboveModerate} hours; expected a narrow peak window, not a constant elevated level.");
         Assert.True(hourly.Min() < 0.15, "Temple's quietest hour should be genuinely calm.");
+    }
+
+    /// <summary>G6-04: Hospital's near-flat profile must never read as
+    /// "silent most of the day, then spikes" (which is Market/Retail's
+    /// shape) -- it should stay in a moderate band all 24 hours, since a
+    /// hospital's service load is not a single-rush pattern.</summary>
+    [Fact]
+    public void Hospital_StaysInAModerateBandAllDay_NeverNearZero()
+    {
+        var hourly = Enumerable.Range(0, 24).Select(h => ActivityClockCatalog.At(BuildingArchetype.Hospital, h).ServiceLoad).ToArray();
+        Assert.True(hourly.Min() > 0.15, $"Hospital's quietest hour ({hourly.Min()}) should still be a moderate, non-near-zero service load.");
+        Assert.True(hourly.Max() - hourly.Min() < 0.35, "Hospital's day should be comparatively flat, not a single sharp spike.");
+    }
+
+    /// <summary>G6-04 ethical/shape regression, same discipline as
+    /// Temple's: Hotel must be genuinely quiet overnight, not a
+    /// constantly-elevated archetype.</summary>
+    [Fact]
+    public void Hotel_IsQuieterOvernightThanItsEveningPeak()
+    {
+        var peak = ActivityClockCatalog.At(BuildingArchetype.Hotel, 19);
+        var overnight = ActivityClockCatalog.At(BuildingArchetype.Hotel, 4);
+        Assert.True(peak.NoiseContribution > overnight.NoiseContribution,
+            $"expected evening peak ({peak.NoiseContribution}) > overnight ({overnight.NoiseContribution})");
+    }
+
+    /// <summary>G6-04: Warehouse's peak is early morning (loading/
+    /// dispatch), distinctly quieter by mid-afternoon -- a different
+    /// time-of-day shape from SmallFactory so the two archetypes are not
+    /// duplicates of each other.</summary>
+    [Fact]
+    public void Warehouse_IsBusierEarlyMorningThanMidAfternoon()
+    {
+        var earlyMorning = ActivityClockCatalog.At(BuildingArchetype.Warehouse, 6);
+        var midAfternoon = ActivityClockCatalog.At(BuildingArchetype.Warehouse, 15);
+        Assert.True(earlyMorning.TripGeneration > midAfternoon.TripGeneration,
+            $"expected early morning ({earlyMorning.TripGeneration}) > mid afternoon ({midAfternoon.TripGeneration})");
+    }
+
+    /// <summary>G6-04: ConvenienceStore is deliberately the lowest-
+    /// amplitude (peak minus baseline) archetype of the twelve, proving
+    /// the catalog does not read as "every commercial archetype is
+    /// loud".</summary>
+    [Theory]
+    [InlineData(BuildingArchetype.Market)]
+    [InlineData(BuildingArchetype.Retail)]
+    [InlineData(BuildingArchetype.LateNightFoodStreet)]
+    [InlineData(BuildingArchetype.SmallFactory)]
+    public void ConvenienceStore_HasLowerDailyAmplitudeThanOtherCommercialArchetypes(BuildingArchetype other)
+    {
+        double Amplitude(BuildingArchetype a)
+        {
+            var hourly = Enumerable.Range(0, 24).Select(h => ActivityClockCatalog.At(a, h).NoiseContribution).ToArray();
+            return hourly.Max() - hourly.Min();
+        }
+
+        var storeAmplitude = Amplitude(BuildingArchetype.ConvenienceStore);
+        var otherAmplitude = Amplitude(other);
+        Assert.True(storeAmplitude < otherAmplitude,
+            $"expected ConvenienceStore amplitude ({storeAmplitude}) < {other} amplitude ({otherAmplitude})");
     }
 
     [Fact]

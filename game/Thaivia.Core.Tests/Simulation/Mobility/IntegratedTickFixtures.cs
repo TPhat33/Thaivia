@@ -27,10 +27,11 @@ namespace Thaivia.Core.Tests.Simulation.Mobility;
 ///              |  way1005 (1 lane)
 ///           N60 (200,-200)
 ///
-/// Building 1000 (residential, see SimulationFixtures.ResidentialBuildingId
-/// -- same id, so its archetype hash is already verified by
-/// SimulationFixturesTests) sits at N10. Building 2003 (office, jobs; same
-/// id as SimulationFixtures.OfficeBuildingId) sits at N40.
+/// Building SimulationFixtures.ResidentialBuildingId (residential -- same
+/// id, so its archetype hash is already verified by
+/// SimulationFixturesTests) sits at N10. Building
+/// SimulationFixtures.OfficeBuildingId (office, jobs; same id) sits at
+/// N40.
 /// </summary>
 internal static class IntegratedTickFixtures
 {

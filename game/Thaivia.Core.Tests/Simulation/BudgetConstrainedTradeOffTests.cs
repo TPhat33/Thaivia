@@ -31,9 +31,13 @@ public class BudgetConstrainedTradeOffTests
     private const long NodeCohortA = 2; // cohort A's residential building sits here.
     private const long NodeCohortB = 3; // cohort B's residential building sits here.
 
-    // Deterministic archetype hashes verified against WorldState.AssignArchetype (see git history for the scratch check that found these).
-    private const long OfficeBuildingId = 3009; // hashes to BuildingArchetype.Office.
-    private const long CohortABuildingId = 3000; // hashes to BuildingArchetype.Residential.
+    // Deterministic archetype hashes verified against WorldState.AssignArchetype
+    // (re-verified after G6-04 grew BuildingArchetype from 8 to 12 members,
+    // which changed AssignArchetype's hash modulus -- CohortABuildingId
+    // moved from 3000 to 3013 because 3000 no longer hashed to
+    // Residential under the new modulus; the other two still do).
+    private const long OfficeBuildingId = 3009; // hashes to BuildingArchetype.Hotel -- any non-Residential (job-bearing) archetype works here, exact type is not asserted.
+    private const long CohortABuildingId = 3013; // hashes to BuildingArchetype.Residential.
     private const long CohortBBuildingId = 3015; // hashes to BuildingArchetype.Residential.
 
     private const long RoadCostA = 200_000;

@@ -41,14 +41,24 @@ internal static class SimulationFixtures
     public const long DetourWaypointNode1 = 22;
     public const long DetourWaypointNode2 = 23;
 
-    public const long ResidentialBuildingId = 1000;
+    // 1012, not 1000: AssignArchetype's deterministic hash of the source
+    // id must land on Residential for this fixture to mean what its
+    // comments say. This was re-verified (and the constant moved from
+    // 1000 to 1012) when G6-04 grew BuildingArchetype from 8 to 12
+    // members, which changed AssignArchetype's hash modulus and made
+    // 1000 land on a different archetype -- see SimulationFixturesTests,
+    // which asserts this hash explicitly so a future archetype-count
+    // change fails loudly here instead of silently corrupting every test
+    // built on "1012 is Residential".
+    public const long ResidentialBuildingId = 1012;
 
     // 2003, not 2000: AssignArchetype's deterministic hash of the source
     // id must land on a non-Residential archetype for this fixture to
     // mean what its comments say (see SimulationFixturesTests, which
     // asserts both ids hash to the archetypes this comment claims -- a
     // control test that would fail loudly if this constant were ever
-    // changed without checking the hash again).
+    // changed without checking the hash again). Still valid after G6-04's
+    // archetype-count change (re-verified: still hashes to Office).
     public const long OfficeBuildingId = 2003;
 
     public static RoadGraph BuildRoadGraph()
