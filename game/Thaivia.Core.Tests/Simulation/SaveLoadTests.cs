@@ -4,6 +4,8 @@ using Thaivia.Core.Simulation;
 using Thaivia.Core.Simulation.Economy;
 using Thaivia.Core.Simulation.Planning;
 using Thaivia.Core.Simulation.Save;
+using Thaivia.Core.Simulation.Storyline;
+using Thaivia.Core.Simulation.Utilities;
 using Xunit;
 
 namespace Thaivia.Core.Tests.Simulation;
@@ -143,6 +145,16 @@ public class SaveLoadTests
         var impact = PlanningEngine.EstimateRelocationAccessImpact(world, SimulationFixtures.ResidentialBuildingId, 22, 3, SimulationFixtures.Node4);
         var draft = new BuildingRelocationDraft("save-reloc", world.Revision, 200_000, impact, SimulationFixtures.ResidentialBuildingId, 22, 3, SimulationFixtures.Node4);
         PlanningEngine.CommitRelocation(world, draft, LedgerAccountKind.Capex, new long[] { 200_000 });
+
+        // Task 1 (ADR-0039) mid-state: a utility source placed, and an
+        // investor proposal ACCEPTED (funding credited, condition window
+        // running) -- both previously in-memory only, now part of the
+        // save this test round-trips.
+        world.AddUtilitySource(new UtilitySource(UtilityKind.Power, SimulationFixtures.Node2, capacityUnitsPerTick: 4));
+        world.AddInvestorProposal(new InvestorProposal(
+            "save-invest", fundingAmountThb: 150_000, LedgerAccountKind.NonRecurring,
+            ProjectKind.BuildingRelocation, conditionWindowTicks: 200, offerExpiryTick: 5));
+        InvestorProposalEngine.Accept(world, "save-invest", currentTick: world.Clock.CurrentTick);
     }
 
     private static void RunPhaseTwo(WorldState world)
@@ -153,6 +165,12 @@ public class SaveLoadTests
         }
 
         PlanningEngine.PayMilestone(world, "save-reloc", 0);
+
+        // Task 1 (ADR-0039) mid-state, continued: a corruption case tied
+        // to the now-actually-paid relocation project, moved past Open
+        // into UnderInvestigation -- previously in-memory only too.
+        CorruptionCaseEngine.OpenCase(world, "save-case", "save-reloc", "Contractor Alpha", allegedOverpaymentThb: 50_000);
+        CorruptionCaseEngine.BeginInvestigation(world, "save-case");
     }
 
     private static string MakeTempDir()
