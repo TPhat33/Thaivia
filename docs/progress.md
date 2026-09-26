@@ -1,5 +1,115 @@
 # Progress log
 
+## Session 9 — 2026-09-26 (wave 9 / Task Zero, Task 1, Task 2 — Opus supervisor brief)
+
+Session นี้ทำทั้งสามงานที่ Opus lead engineer มอบหมายหลังตรวจงาน wave 8:
+Task Zero (บังคับ, ก่อนอื่น), Task 1 (บังคับ), Task 2 (ทำเมื่อสองงานแรก
+เสร็จและ push แล้ว) ทำครบทั้งสามงาน commit เป็นชุดเล็กๆ ตาม topic
+(production code / tests / docs) push ทุก 2-3 commit **ไม่แตะ Unity
+project scaffolding, `.meta` ใดๆ, หรือ `game/Assets/Scripts/Runtime/`
+เลย** (ตรวจด้วย `git diff --name-only` เทียบ commit ก่อนเริ่ม session —
+ดูรายการไฟล์ท้าย section นี้)
+
+### Task Zero — Archetype assignment ไม่ stable เมื่อ catalog โต (ADR-0038, supersedes ADR-0030 §4)
+
+ต้นเหตุจริงคือ `WorldState.AssignArchetype` ใช้
+`hash(sourceId) % Enum.GetValues(typeof(BuildingArchetype)).Length` — ทุก
+ครั้งที่เพิ่ม archetype divisor เปลี่ยน ทำให้ทุก building ในทุกพื้นที่ถูก
+reassign ใหม่หมด (wave 8 เจอปัญหานี้จริงแล้ว "แก้" ด้วยการ renumber
+fixture — symptom fix)
+
+แก้ที่ต้นเหตุด้วย **append-only versioned catalog**
+(`Thaivia.Core.Simulation.Archetypes.ArchetypeCatalog`): เก็บ ordered list
+ของ archetype ต่อ version ที่ freeze ทันทีที่ ship (V1 = 8 เดิมของ G3,
+V2 = V1 + 4 ใหม่ของ G6-04 ต่อท้าย, ตรงกับพฤติกรรมเดิมเป๊ะทุกประการ ไม่
+ต้องแก้ fixture ใดๆ อีก) `WorldState.AssignArchetype(sourceId, version)`
+resolve ผ่าน version ที่ **pin ไว้กับ world นั้น** (`ArchetypeCatalogVersion`
+property ใหม่) เสมอ ไม่ใช่ "current" ที่เปลี่ยนตามเวลา — การเพิ่ม
+archetype ในอนาคตจึงไม่มีทางย้อนกลับไปเปลี่ยน assignment ของ world/save
+ที่มีอยู่แล้ว
+
+พิสูจน์ด้วย `ArchetypeCatalogGrowthTests` (7 test รวมทั้ง positive control
+ที่แสดงว่า scheme เดิม reshuffle จริง กับ negative control/การพิสูจน์หลัก
+`AppendOnlyCatalogAssignment_AddingACategory_ChangesNoIdThatWasAssignedAgainstTheOldCatalog`
+ที่ใช้ generic seam จำลองการโตของ catalog แบบ dynamic) content-version
+handling: `SaveGame.ArchetypeCatalogVersion` (int, required field ใหม่)
+save ที่มาจาก version ใหม่กว่าที่ build รู้จักถูกปฏิเสธชัดเจนด้วย
+`ArchetypeCatalogVersionUnknownException` (ก่อนแตะ state อื่นใดเลย — ไม่มี
+partial load) save ที่มาจาก version เก่ากว่าโหลดผ่านตรงๆ (identity
+migration เพราะ archetype เก็บเป็นชื่อ ไม่ใช่ index) — พิสูจน์ด้วย
+`ArchetypeCatalogSaveVersioningTests` (3 test)
+
+### Task 1 — ปิดช่องว่าง save-completeness ของ UtilitySource/InvestorProposal/CorruptionCase (ADR-0039)
+
+ทั้งสามระบบที่ wave 8 บันทึกไว้ตรงๆ ว่า "in-memory เท่านั้น ยังไม่ persist"
+(ADR-0033/0035/0036) ตอนนี้อยู่ใน `SaveGame` และ `ComputeStructuralHash`
+แล้ว ในคอมมิตเดียวกัน (วินัยเดียวกับ ADR-0021 ตอน G4) restore ตรงเข้า
+backing collection เหมือน subsystem อื่นที่มีอยู่แล้ว
+`StorylineAndUtilitySaveRoundTripTests` capture mid-state ที่ไม่ trivial:
+utility source วางจริง, investor proposal ที่ `Accepted` (เงินเข้าบัญชี
+แล้ว, required project commit แล้วมีเงินทั้งจ่ายไปบางส่วนและ reserve
+บางส่วน), corruption case ที่ผ่าน `BeginInvestigation` แล้ว — พิสูจน์ field
+by field และพิสูจน์ save→load→continue N ticks ≡ ไม่เคย save เลย
+`SaveLoadTests`'s canonical round-trip test เองก็ถูกขยายให้มี mid-state
+นี้ด้วยเช่นกัน (ไม่ใช่แค่ test แยกต่างหาก) invariant เดิมทั้งหมด
+(determinism, gateway conservation, non-mutating estimate, no
+double-charge) ยืนยันซ้ำแล้วว่ายังผ่าน
+
+### Task 2 — ถนนที่ผู้เล่นสร้างเข้าร่วม congestion accounting (ADR-0040, ปิด gap ของ ADR-0022/0031)
+
+`NetworkDemandAssignment.DeduplicateWayIds` เคยกรอง synthetic (negative)
+way id ของ `PlannedRoadSegment` ทิ้งทั้งหมด ทำให้ถนนที่ผู้เล่นสร้างไม่เคย
+ถูกนับ arrivals และไม่เคยมี capacity entry — ดูเหมือนมี capacity ไม่จำกัด
+ไม่ว่าจะส่ง traffic ไปเท่าไหร่ แก้โดย: `MobilityGraph` เปิดเผย
+`PlannedRoadSegmentWayIds` mapping, `WorldState.ComputeCapacityByWayId`
+เพิ่ม capacity entry ให้ทุก segment จาก `RoadPresetCatalog.CapacityVehPerTick`
+(เลขเดียวกับที่ ADR-0031 นิยามไว้แล้วแต่ไม่เคยใช้), และ
+`DeduplicateWayIds` เลิกกรอง negative id ทิ้ง
+
+วัดจริงบน two-route-style fixture (`PlayerBuiltConnectorCongestionTests`,
+ถนนสั้น capacity 2/tick vs player connector RoadPreset.Arterial 8/tick,
+demand 12/tick x 200 ticks): connector รับ **1,665/2,400 (69.4%)** ของ
+demand ending backlog **65** (>0 — พิสูจน์ว่าไม่ใช่ capacity ไม่จำกัดอีก
+ต่อไป) short way รับ 735 (30.6%) backlog 335 — conservation ผ่าน
+(`docs/evidence/g8-task2-demand-split-measured.log`) perf benchmark
+วัดใหม่: p95 = 0.8142ms (เดิม 0.7712ms) ยังอยู่ใต้ budget 5ms มาก — fixture
+เดิมไม่มี committed segment เลยจึงความต่างนี้เป็น noise ไม่ใช่ regression
+ที่ attribute ให้โค้ดนี้ได้ (`docs/evidence/g8-task2-benchmark-after.log`)
+
+### คำสั่งที่รันและผล
+
+| คำสั่ง | exit code | ผล | log |
+|---|---|---|---|
+| `cd game && dotnet build Thaivia.sln` | 0 | build succeeded | `docs/evidence/g8-final-dotnet-build.log` |
+| `dotnet test Thaivia.sln` | 0 | **312 passed** (297 baseline → 307 หลัง Task 0/1 → 312 หลัง Task 2) | `docs/evidence/g8-final-dotnet-test.log` |
+| `./.venv/bin/pytest -q` | 0 | **77 passed** (ไม่เปลี่ยนจาก wave 8 — session นี้ไม่แตะ Python) | `docs/evidence/g8-final-pytest.log` |
+
+Test counts: C# 297 → 312 (+15: 10 Task Zero, 3 Task 1, 2 Task 2); Python
+77 → 77 (unchanged)
+
+### Android/iOS/phone/tablet — แยกกันเหมือนเดิม
+
+ยังไม่มี Unity Editor/Android SDK/macOS+Xcode ในสภาพแวดล้อมนี้ — ทุกแถว
+**not_run** (ไม่เปลี่ยนจาก session ก่อนหน้า ดู ADR-0002):
+
+| Platform | สถานะ |
+|---|---|
+| Android — Editor build | not_run |
+| Android — emulator | not_run |
+| Android — physical phone | not_run |
+| Android — physical tablet | not_run |
+| iOS — Editor/simulator build | not_run |
+| iOS — physical phone | not_run |
+| iOS — physical tablet | not_run |
+
+### ไฟล์ที่แตะทั้ง session (ยืนยันไม่มีไฟล์ต้องห้าม)
+
+`git diff --name-only <start-commit>..HEAD` มีเฉพาะไฟล์ใต้
+`game/Assets/Scripts/Core/`, `game/Thaivia.Core.Tests/`, และ `docs/` —
+ไม่มี `ProjectSettings/`, `Packages/manifest.json`, `packages-lock.json`,
+`ProjectVersion.txt`, `.asmdef`, `.meta`, scene/prefab ใดๆ, หรือไฟล์ใต้
+`game/Assets/Scripts/Runtime/` เลยแม้แต่ไฟล์เดียว
+
 ## Session 8 — 2026-09-26 (wave 8 / G6 content: 9 of 10 pending tasks implemented)
 
 Session นี้ทำ 9 จาก 10 task ที่ session 7 ทิ้งไว้เป็น `pending` (ไม่มี

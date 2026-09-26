@@ -1206,6 +1206,63 @@
       "status": "blocked",
       "evidence": [],
       "notes": "Transitively blocked on every unresolved G6 blocker above (no Unity Editor, no 2nd/3rd real area data, no mobile devices, no owner sign-off yet) -- this is the gate task, not independent work."
+    },
+    {
+      "id": "G6-16",
+      "gate": "G6",
+      "title": "Fix BuildingArchetype assignment scheme: append-only versioned catalog (Task Zero, ADR-0038, supersedes ADR-0030 sec.4)",
+      "dependencies": [
+        "G6-04"
+      ],
+      "acceptance_criteria": "WorldState.AssignArchetype no longer hashes modulo Enum.GetValues(BuildingArchetype).Length (a scheme that reshuffles every building's archetype whenever an archetype is added); resolves instead against ArchetypeCatalog.ForVersion(N), a frozen append-only list pinned per-world/save via WorldState.ArchetypeCatalogVersion; a test proves adding a new archetype changes no previously-assigned building; SaveGame carries ArchetypeCatalogVersion and a save with an unknown (newer) version is refused explicitly (ArchetypeCatalogVersionUnknownException), while an older known version loads unchanged (tested identity migration); 12 archetypes and both ethical controls unaffected.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Archetypes/ArchetypeCatalog.cs, AppendOnlyCatalogAssignment.cs, ArchetypeCatalogVersionUnknownException.cs",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (AssignArchetype(sourceId, archetypeCatalogVersion), ArchetypeCatalogVersion property, Restore's early explicit version check)",
+        "game/Assets/Scripts/Core/Simulation/Save/SaveGame.cs, SaveSerializer.cs (archetype_catalog_version field)",
+        "game/Thaivia.Core.Tests/Simulation/ArchetypeCatalogGrowthTests.cs (7 tests incl. AppendOnlyCatalogAssignment_AddingACategory_ChangesNoIdThatWasAssignedAgainstTheOldCatalog)",
+        "game/Thaivia.Core.Tests/Simulation/ArchetypeCatalogSaveVersioningTests.cs (3 tests: explicit refusal + tested identity migration)",
+        "docs/decisions/0038-g6-archetype-append-only-catalog.md (supersedes ADR-0030 sec.4), docs/decisions/0030-... (amended with pointer)",
+        "docs/evidence/g8-dotnet-build.log, g8-dotnet-test.log, g8-final-dotnet-test.log (312 passed)"
+      ]
+    },
+    {
+      "id": "G6-17",
+      "gate": "G6",
+      "title": "Save-completeness: persist UtilitySource/InvestorProposal/CorruptionCase (Task 1, ADR-0039)",
+      "dependencies": [
+        "G6-06",
+        "G6-08",
+        "G6-09"
+      ],
+      "acceptance_criteria": "UtilitySource/InvestorProposal/CorruptionCase (previously in-memory only per ADR-0033/0035/0036) are added to SaveGame and WorldState.ComputeStructuralHash in the same commit; a save round-trip test captures a non-trivial mid-state (utility source placed, investor proposal accepted with a committed project reserving real money, corruption case mid-investigation) and proves field-by-field survival plus save->load->continue-N-ticks equivalence to never having saved; determinism, gateway conservation, non-mutating estimate and no-double-charge invariants re-proven unchanged.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Save/SaveGame.cs, SavedRecords.cs (SavedUtilitySource/SavedInvestorProposal/SavedCorruptionCase), SaveSerializer.cs",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (CaptureSave/Restore/ComputeStructuralHash extended for all three)",
+        "game/Assets/Scripts/Core/Serialization/JsonRequire.cs (NullableInt64/NullableInt32)",
+        "game/Thaivia.Core.Tests/Simulation/StorylineAndUtilitySaveRoundTripTests.cs (3 tests), SaveLoadTests.cs (RunPhaseOne/Two extended)",
+        "docs/decisions/0039-g6-save-persistence-for-utilities-investor-corruption.md",
+        "docs/evidence/g8-dotnet-test.log, g8-final-dotnet-test.log (312 passed)"
+      ]
+    },
+    {
+      "id": "G6-18",
+      "gate": "G6",
+      "title": "Player-built roads participate in congestion accounting (Task 2, ADR-0040, closes ADR-0022/0031 gap)",
+      "dependencies": [
+        "G6-05"
+      ],
+      "acceptance_criteria": "A committed PlannedRoadSegment's synthetic (negative) way id is no longer excluded from NetworkDemandAssignment/WorldState's congestion and queue accounting; it is charged a real capacity from RoadPresetCatalog.CapacityVehPerTick; a two-route-style test proves a real measured demand split onto a player-built connector and that it accumulates a real queue backlog once its own capacity is exceeded (not treated as free/infinite capacity); the perf benchmark is re-measured and stays within the p95<=5ms budget.",
+      "status": "done",
+      "evidence": [
+        "game/Assets/Scripts/Core/Simulation/Mobility/Routing/MobilityGraph.cs (PlannedRoadSegmentWayIds)",
+        "game/Assets/Scripts/Core/Simulation/WorldState.cs (ComputeCapacityByWayId includes planned segments)",
+        "game/Assets/Scripts/Core/Simulation/Mobility/Demand/NetworkDemandAssignment.cs (DeduplicateWayIds no longer drops negative ids)",
+        "game/Thaivia.Core.Tests/Simulation/Mobility/PlayerBuiltConnectorCongestionTests.cs (2 tests), TwoRouteAssignmentFixtures.cs (BuildTwoRouteGraphShortWayOnly), TripDemandGeneratorTests.cs (updated assertion)",
+        "docs/decisions/0040-g6-player-road-congestion-participation.md",
+        "docs/evidence/g8-task2-demand-split-measured.log (69.4% share, backlog 65>0), g8-task2-benchmark-after.log (p95 0.8142ms vs prior 0.7712ms, budget <=5ms)"
+      ]
     }
   ]
 }
