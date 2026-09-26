@@ -34,6 +34,7 @@ public static class SaveSerializer
             writer.WriteString("map_content_hash", save.MapContentHash);
             writer.WriteString("simulation_version", save.SimulationVersion);
             writer.WriteString("content_version", save.ContentVersion);
+            writer.WriteNumber("archetype_catalog_version", save.ArchetypeCatalogVersion);
             writer.WriteNumber("current_tick", save.CurrentTick);
             writer.WriteNumber("revision", save.Revision);
             writer.WriteNumber("master_seed", save.MasterSeed);
@@ -257,6 +258,77 @@ public static class SaveSerializer
 
             writer.WriteEndArray();
 
+            writer.WriteStartArray("utility_sources");
+            foreach (var u in save.UtilitySources)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("kind", u.Kind);
+                writer.WriteNumber("node_id", u.NodeId);
+                writer.WriteNumber("capacity_units_per_tick", u.CapacityUnitsPerTick);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("investor_proposals");
+            foreach (var p in save.InvestorProposals)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", p.Id);
+                writer.WriteNumber("funding_amount_thb", p.FundingAmountThb);
+                writer.WriteString("ledger_kind", p.LedgerKind);
+                writer.WriteString("required_project_kind", p.RequiredProjectKind);
+                writer.WriteNumber("condition_window_ticks", p.ConditionWindowTicks);
+                writer.WriteNumber("offer_expiry_tick", p.OfferExpiryTick);
+                writer.WriteString("status", p.Status);
+                if (p.AcceptedAtTick.HasValue)
+                {
+                    writer.WriteNumber("accepted_at_tick", p.AcceptedAtTick.Value);
+                }
+                else
+                {
+                    writer.WriteNull("accepted_at_tick");
+                }
+
+                if (p.ConditionDeadlineTick.HasValue)
+                {
+                    writer.WriteNumber("condition_deadline_tick", p.ConditionDeadlineTick.Value);
+                }
+                else
+                {
+                    writer.WriteNull("condition_deadline_tick");
+                }
+
+                if (p.BaselineRequiredKindCount.HasValue)
+                {
+                    writer.WriteNumber("baseline_required_kind_count", p.BaselineRequiredKindCount.Value);
+                }
+                else
+                {
+                    writer.WriteNull("baseline_required_kind_count");
+                }
+
+                writer.WriteNumber("amount_clawed_back", p.AmountClawedBack);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WriteStartArray("corruption_cases");
+            foreach (var c in save.CorruptionCases)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("case_id", c.CaseId);
+                writer.WriteString("related_committed_project_id", c.RelatedCommittedProjectId);
+                writer.WriteString("contractor_label", c.ContractorLabel);
+                writer.WriteNumber("alleged_overpayment_thb", c.AllegedOverpaymentThb);
+                writer.WriteString("status", c.Status);
+                writer.WriteNumber("recovered_amount_thb", c.RecoveredAmountThb);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
             writer.WriteEndObject();
         }
 
@@ -422,11 +494,41 @@ public static class SaveSerializer
                 JsonRequire.Int64(item, "incidents_triggered", itemPath),
                 JsonRequire.Int32(item, "last_severity", itemPath)));
 
+        var utilitySources = JsonRequire.MapArray(JsonRequire.Array(root, "utility_sources", path), "$.utility_sources", (item, itemPath, _) =>
+            new SavedUtilitySource(
+                JsonRequire.String(item, "kind", itemPath),
+                JsonRequire.Int64(item, "node_id", itemPath),
+                JsonRequire.Int32(item, "capacity_units_per_tick", itemPath)));
+
+        var investorProposals = JsonRequire.MapArray(JsonRequire.Array(root, "investor_proposals", path), "$.investor_proposals", (item, itemPath, _) =>
+            new SavedInvestorProposal(
+                JsonRequire.String(item, "id", itemPath),
+                JsonRequire.Int64(item, "funding_amount_thb", itemPath),
+                JsonRequire.String(item, "ledger_kind", itemPath),
+                JsonRequire.String(item, "required_project_kind", itemPath),
+                JsonRequire.Int64(item, "condition_window_ticks", itemPath),
+                JsonRequire.Int64(item, "offer_expiry_tick", itemPath),
+                JsonRequire.String(item, "status", itemPath),
+                JsonRequire.NullableInt64(item, "accepted_at_tick", itemPath),
+                JsonRequire.NullableInt64(item, "condition_deadline_tick", itemPath),
+                JsonRequire.NullableInt32(item, "baseline_required_kind_count", itemPath),
+                JsonRequire.Int64(item, "amount_clawed_back", itemPath)));
+
+        var corruptionCases = JsonRequire.MapArray(JsonRequire.Array(root, "corruption_cases", path), "$.corruption_cases", (item, itemPath, _) =>
+            new SavedCorruptionCase(
+                JsonRequire.String(item, "case_id", itemPath),
+                JsonRequire.String(item, "related_committed_project_id", itemPath),
+                JsonRequire.String(item, "contractor_label", itemPath),
+                JsonRequire.Int64(item, "alleged_overpayment_thb", itemPath),
+                JsonRequire.String(item, "status", itemPath),
+                JsonRequire.Int64(item, "recovered_amount_thb", itemPath)));
+
         return new SaveGame(
             JsonRequire.String(root, "map_id", path),
             JsonRequire.String(root, "map_content_hash", path),
             JsonRequire.String(root, "simulation_version", path),
             JsonRequire.String(root, "content_version", path),
+            JsonRequire.Int32(root, "archetype_catalog_version", path),
             JsonRequire.Int64(root, "current_tick", path),
             JsonRequire.Int64(root, "revision", path),
             JsonRequire.Int64(root, "master_seed", path),
@@ -444,7 +546,10 @@ public static class SaveSerializer
             roadWorksZones,
             busRoutes,
             signals,
-            incidentSites);
+            incidentSites,
+            utilitySources,
+            investorProposals,
+            corruptionCases);
     }
 
     /// <summary>G6-05: "preset" was added to planned_road_segments after

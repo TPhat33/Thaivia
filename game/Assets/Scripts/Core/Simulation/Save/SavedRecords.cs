@@ -277,3 +277,82 @@ public sealed class SavedIncidentSite
     public long IncidentsTriggered { get; }
     public int LastSeverity { get; }
 }
+
+// --- G6 minor systems: previously in-memory-only (ADR-0039) ---
+
+/// <summary>Mirrors one <see cref="Utilities.UtilitySource"/>. Has no id
+/// of its own in the live type -- (Kind, NodeId) is a stable enough key
+/// for a save file since <c>WorldState.AddUtilitySource</c> never allows
+/// two sources to collide in a way that matters to
+/// <c>ComputeUtilityCoverageScore</c>.</summary>
+public sealed class SavedUtilitySource
+{
+    public SavedUtilitySource(string kind, long nodeId, int capacityUnitsPerTick)
+    {
+        Kind = kind;
+        NodeId = nodeId;
+        CapacityUnitsPerTick = capacityUnitsPerTick;
+    }
+
+    public string Kind { get; }
+    public long NodeId { get; }
+    public int CapacityUnitsPerTick { get; }
+}
+
+/// <summary>Mirrors one <see cref="Planning.InvestorProposal"/>, including
+/// the nullable fields that are only set once a proposal has moved past
+/// <c>Offered</c> (<see cref="AcceptedAtTick"/>/<see cref="ConditionDeadlineTick"/>/
+/// <see cref="BaselineRequiredKindCount"/>).</summary>
+public sealed class SavedInvestorProposal
+{
+    public SavedInvestorProposal(
+        string id, long fundingAmountThb, string ledgerKind, string requiredProjectKind,
+        long conditionWindowTicks, long offerExpiryTick, string status,
+        long? acceptedAtTick, long? conditionDeadlineTick, int? baselineRequiredKindCount, long amountClawedBack)
+    {
+        Id = id;
+        FundingAmountThb = fundingAmountThb;
+        LedgerKind = ledgerKind;
+        RequiredProjectKind = requiredProjectKind;
+        ConditionWindowTicks = conditionWindowTicks;
+        OfferExpiryTick = offerExpiryTick;
+        Status = status;
+        AcceptedAtTick = acceptedAtTick;
+        ConditionDeadlineTick = conditionDeadlineTick;
+        BaselineRequiredKindCount = baselineRequiredKindCount;
+        AmountClawedBack = amountClawedBack;
+    }
+
+    public string Id { get; }
+    public long FundingAmountThb { get; }
+    public string LedgerKind { get; }
+    public string RequiredProjectKind { get; }
+    public long ConditionWindowTicks { get; }
+    public long OfferExpiryTick { get; }
+    public string Status { get; }
+    public long? AcceptedAtTick { get; }
+    public long? ConditionDeadlineTick { get; }
+    public int? BaselineRequiredKindCount { get; }
+    public long AmountClawedBack { get; }
+}
+
+/// <summary>Mirrors one <see cref="Storyline.CorruptionCase"/>.</summary>
+public sealed class SavedCorruptionCase
+{
+    public SavedCorruptionCase(string caseId, string relatedCommittedProjectId, string contractorLabel, long allegedOverpaymentThb, string status, long recoveredAmountThb)
+    {
+        CaseId = caseId;
+        RelatedCommittedProjectId = relatedCommittedProjectId;
+        ContractorLabel = contractorLabel;
+        AllegedOverpaymentThb = allegedOverpaymentThb;
+        Status = status;
+        RecoveredAmountThb = recoveredAmountThb;
+    }
+
+    public string CaseId { get; }
+    public string RelatedCommittedProjectId { get; }
+    public string ContractorLabel { get; }
+    public long AllegedOverpaymentThb { get; }
+    public string Status { get; }
+    public long RecoveredAmountThb { get; }
+}

@@ -89,6 +89,28 @@ internal static class JsonRequire
 
     public static int Int32(JsonElement obj, string name, string path) => checked((int)Int64(obj, name, path));
 
+    /// <summary>Integer field that may legitimately be JSON null (e.g. an
+    /// <c>InvestorProposal</c> field that is only set once a proposal has
+    /// moved past <c>Offered</c>) -- present but null is a required,
+    /// explicit "no value" the same way <see cref="NullableString"/>
+    /// treats it, never a missing-field error.</summary>
+    public static long? NullableInt64(JsonElement obj, string name, string path)
+    {
+        var value = Property(obj, name, path);
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number when value.TryGetInt64(out var result) => result,
+            JsonValueKind.Null => null,
+            _ => throw new MapPackFieldException($"{path}.{name}", $"expected a JSON integer or null, found {value.ValueKind}."),
+        };
+    }
+
+    public static int? NullableInt32(JsonElement obj, string name, string path)
+    {
+        var value = NullableInt64(obj, name, path);
+        return value.HasValue ? checked((int)value.Value) : null;
+    }
+
     public static double Double(JsonElement obj, string name, string path)
     {
         var value = Property(obj, name, path);

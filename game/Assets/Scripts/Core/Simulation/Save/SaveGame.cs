@@ -24,6 +24,7 @@ public sealed class SaveGame
         string mapContentHash,
         string simulationVersion,
         string contentVersion,
+        int archetypeCatalogVersion,
         long currentTick,
         long revision,
         long masterSeed,
@@ -41,12 +42,16 @@ public sealed class SaveGame
         IReadOnlyList<SavedRoadWorksZone> roadWorksZones,
         IReadOnlyList<SavedBusRoute> busRoutes,
         IReadOnlyList<SavedSignal> signals,
-        IReadOnlyList<SavedIncidentSite> incidentSites)
+        IReadOnlyList<SavedIncidentSite> incidentSites,
+        IReadOnlyList<SavedUtilitySource> utilitySources,
+        IReadOnlyList<SavedInvestorProposal> investorProposals,
+        IReadOnlyList<SavedCorruptionCase> corruptionCases)
     {
         MapId = mapId;
         MapContentHash = mapContentHash;
         SimulationVersion = simulationVersion;
         ContentVersion = contentVersion;
+        ArchetypeCatalogVersion = archetypeCatalogVersion;
         CurrentTick = currentTick;
         Revision = revision;
         MasterSeed = masterSeed;
@@ -65,12 +70,28 @@ public sealed class SaveGame
         BusRoutes = busRoutes;
         Signals = signals;
         IncidentSites = incidentSites;
+        UtilitySources = utilitySources;
+        InvestorProposals = investorProposals;
+        CorruptionCases = corruptionCases;
     }
 
     public string MapId { get; }
     public string MapContentHash { get; }
     public string SimulationVersion { get; }
     public string ContentVersion { get; }
+
+    /// <summary>Which <see cref="Archetypes.ArchetypeCatalog"/> version
+    /// this save's buildings were assigned under (ADR-0038). Loading a
+    /// save whose version this build has never heard of (i.e. GREATER
+    /// than <see cref="Archetypes.ArchetypeCatalog.CurrentVersion"/>)
+    /// throws <see cref="Archetypes.ArchetypeCatalogVersionUnknownException"/>
+    /// from <see cref="Simulation.WorldState.Restore"/> rather than
+    /// silently guessing -- see that exception's doc comment. A save from
+    /// an OLDER, still-known version needs no migration: every building's
+    /// archetype is stored by name in <see cref="Buildings"/>, so it is
+    /// unaffected by how large the catalog has grown since.</summary>
+    public int ArchetypeCatalogVersion { get; }
+
     public long CurrentTick { get; }
     public long Revision { get; }
     public long MasterSeed { get; }
@@ -92,4 +113,10 @@ public sealed class SaveGame
     public IReadOnlyList<SavedBusRoute> BusRoutes { get; }
     public IReadOnlyList<SavedSignal> Signals { get; }
     public IReadOnlyList<SavedIncidentSite> IncidentSites { get; }
+
+    // --- G6 minor systems (utilities/investor proposals/corruption case
+    // -- previously in-memory-only; see ADR-0039) ---
+    public IReadOnlyList<SavedUtilitySource> UtilitySources { get; }
+    public IReadOnlyList<SavedInvestorProposal> InvestorProposals { get; }
+    public IReadOnlyList<SavedCorruptionCase> CorruptionCases { get; }
 }

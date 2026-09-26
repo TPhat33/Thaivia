@@ -65,20 +65,18 @@ public sealed class WorldState
     private readonly List<SignalInstance> _signals = new();
     private readonly List<IncidentSite> _incidentSites = new();
 
-    // G6-06: utility service sources (water/power/waste). In-memory
-    // scenario setup only, like the rest of this block -- NOT YET part
-    // of SaveGame persistence (a stated scope gap, see ADR-0033: a save/
-    // load round trip loses registered UtilitySources, the same
-    // "documented gap, not silently pretended closed" discipline
-    // ADR-0031 used for NetworkDemandAssignment's synthetic-way-id gap).
+    // G6-06: utility service sources (water/power/waste). Persisted in
+    // SaveGame.UtilitySources and included in ComputeStructuralHash as of
+    // ADR-0039 -- closes the "not yet part of SaveGame persistence" gap
+    // ADR-0033 originally documented.
     private readonly List<UtilitySource> _utilitySources = new();
 
-    // G6-08: investor proposals. In-memory only, same stated scope gap as
-    // _utilitySources above (not yet part of SaveGame persistence).
+    // G6-08: investor proposals. Persisted in SaveGame.InvestorProposals
+    // as of ADR-0039 (previously in-memory only).
     private readonly Dictionary<string, Planning.InvestorProposal> _investorProposals = new();
 
-    // G6-09: fictional procurement/corruption cases. In-memory only, same
-    // stated scope gap as _utilitySources/_investorProposals above.
+    // G6-09: fictional procurement/corruption cases. Persisted in
+    // SaveGame.CorruptionCases as of ADR-0039 (previously in-memory only).
     private readonly Dictionary<string, Storyline.CorruptionCase> _corruptionCases = new();
 
     // --- Precomputed, read-only topology indexes over RoadGraph (never
@@ -148,8 +146,9 @@ public sealed class WorldState
         Ledger = new MoneyLedger(scenario.InitialCashThb);
         Revision = 0;
 
+        ArchetypeCatalogVersion = ArchetypeCatalog.CurrentVersion;
         _roadNodeIds = roadGraph.Nodes.Select(n => n.NodeId).ToHashSet();
-        (_buildingStates, _cohorts) = SeedFromGeography(geographyBase, roadGraph, scenario, RandomStreams);
+        (_buildingStates, _cohorts) = SeedFromGeography(geographyBase, roadGraph, scenario, RandomStreams, ArchetypeCatalogVersion);
         (_edgesByWayId, _nodesById, _waysAtNode) = BuildTopologyIndexes(roadGraph);
 
         LinkQueues = new LinkQueueSimulator();
@@ -177,6 +176,18 @@ public sealed class WorldState
         RandomStreams = NamedRandomStreams.Restore(save.MasterSeed, save.RngStates, save.RngDrawCounts);
         Ledger = MoneyLedger.Restore(save.CashByKind, save.ReservedByKind);
         Revision = save.Revision;
+
+        // Explicit refusal, before any other state is touched, for a save
+        // whose archetype catalog version this build does not know (see
+        // ArchetypeCatalogVersionUnknownException's doc comment and
+        // ADR-0038) -- never a silent partial load, and never a confusing
+        // Enum.Parse failure deep inside the building-restore loop below.
+        // A save from an OLDER, still-known version needs no migration at
+        // all here: every building's archetype is stored by NAME (not by
+        // index/modulus), so it round-trips exactly regardless of how
+        // large BuildingArchetype has grown since that version shipped.
+        ArchetypeCatalog.ForVersion(save.ArchetypeCatalogVersion);
+        ArchetypeCatalogVersion = save.ArchetypeCatalogVersion;
 
         _roadNodeIds = roadGraph.Nodes.Select(n => n.NodeId).ToHashSet();
         (_edgesByWayId, _nodesById, _waysAtNode) = BuildTopologyIndexes(roadGraph);
@@ -248,6 +259,31 @@ public sealed class WorldState
                 inc.SiteId, Enum.Parse<IncidentStrand>(inc.Strand), Enum.Parse<IncidentPhase>(inc.Phase),
                 inc.TicksInPhase, inc.WarningsIssued, inc.IncidentsTriggered, inc.LastSeverity));
         }
+
+        // --- G6 minor systems (ADR-0039): restored directly into the
+        // backing collections, the same "bypass the validating Add*
+        // method on restore" discipline every other subsystem above uses
+        // (the data was already validated once, at the moment it was
+        // first added, before it was ever captured into a SaveGame).
+        foreach (var u in save.UtilitySources)
+        {
+            _utilitySources.Add(new UtilitySource(Enum.Parse<UtilityKind>(u.Kind), u.NodeId, u.CapacityUnitsPerTick));
+        }
+
+        foreach (var p in save.InvestorProposals)
+        {
+            _investorProposals[p.Id] = new Planning.InvestorProposal(
+                p.Id, p.FundingAmountThb, Enum.Parse<LedgerAccountKind>(p.LedgerKind), Enum.Parse<ProjectKind>(p.RequiredProjectKind),
+                p.ConditionWindowTicks, p.OfferExpiryTick, Enum.Parse<Planning.InvestorProposalStatus>(p.Status),
+                p.AcceptedAtTick, p.ConditionDeadlineTick, p.BaselineRequiredKindCount, p.AmountClawedBack);
+        }
+
+        foreach (var c in save.CorruptionCases)
+        {
+            _corruptionCases[c.CaseId] = new Storyline.CorruptionCase(
+                c.CaseId, c.RelatedCommittedProjectId, c.ContractorLabel, c.AllegedOverpaymentThb,
+                Enum.Parse<Storyline.CorruptionCaseStatus>(c.Status), c.RecoveredAmountThb);
+        }
     }
 
     public GeographyBase GeographyBase { get; }
@@ -265,6 +301,15 @@ public sealed class WorldState
     public NamedRandomStreams RandomStreams { get; }
     public MoneyLedger Ledger { get; }
     public long Revision { get; private set; }
+
+    /// <summary>The <see cref="ArchetypeCatalog"/> version this world's
+    /// buildings were assigned under -- set once at construction (fresh:
+    /// <see cref="ArchetypeCatalog.CurrentVersion"/>; restored: whatever
+    /// the save recorded) and never changed afterward. Persisted on
+    /// <see cref="Save.SaveGame"/> so a future, larger catalog never
+    /// silently reassigns a building this world already gave an
+    /// archetype to (see ADR-0038).</summary>
+    public int ArchetypeCatalogVersion { get; }
 
     public IReadOnlyDictionary<long, BuildingSimState> BuildingStates => _buildingStates;
     public IReadOnlyDictionary<string, HouseholdCohort> Cohorts => _cohorts;
@@ -1160,6 +1205,30 @@ public sealed class WorldState
                 .Append(site.IncidentsTriggered).Append(',').Append(site.LastSeverity).Append(';');
         }
 
+        // --- G6 minor systems (ADR-0039): must be represented here or a
+        // save/restore that lost them (or two worlds that diverged only
+        // in utility/investor/corruption state) could still hash
+        // identically -- the same reasoning ADR-0021 already applied to
+        // G4 mobility state above.
+        foreach (var u in _utilitySources.OrderBy(u => u.Kind.ToString(), StringComparer.Ordinal).ThenBy(u => u.NodeId))
+        {
+            sb.Append("util.").Append(u.Kind).Append('.').Append(u.NodeId).Append('=')
+                .Append(u.CapacityUnitsPerTick).Append(';');
+        }
+
+        foreach (var p in _investorProposals.Values.OrderBy(p => p.Id, StringComparer.Ordinal))
+        {
+            sb.Append("inv.").Append(p.Id).Append('=')
+                .Append(p.Status).Append(',').Append(p.AcceptedAtTick).Append(',').Append(p.ConditionDeadlineTick).Append(',')
+                .Append(p.BaselineRequiredKindCount).Append(',').Append(p.AmountClawedBack).Append(';');
+        }
+
+        foreach (var c in _corruptionCases.Values.OrderBy(c => c.CaseId, StringComparer.Ordinal))
+        {
+            sb.Append("corr.").Append(c.CaseId).Append('=')
+                .Append(c.Status).Append(',').Append(c.RecoveredAmountThb).Append(';');
+        }
+
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash);
@@ -1180,6 +1249,7 @@ public sealed class WorldState
             mapContentHash,
             simulationVersion,
             contentVersion,
+            ArchetypeCatalogVersion,
             Clock.CurrentTick,
             Revision,
             RandomStreams.MasterSeed,
@@ -1203,7 +1273,14 @@ public sealed class WorldState
                 s.Id, s.NodeId, s.Kind.ToString(), s.CycleTicks, s.ConfigValue, s.DischargeRatePerGreenTick,
                 s.Simulator.QueueA, s.Simulator.QueueB, s.Simulator.CurrentGreenTicksA, s.Simulator.CurrentGreenTicksB,
                 s.Simulator.CumulativeQueueTicksA, s.Simulator.CumulativeQueueTicksB, s.Simulator.TicksSimulated)).ToList(),
-            _incidentSites.Select(i => new SavedIncidentSite(i.SiteId, i.Strand.ToString(), i.Phase.ToString(), i.TicksInPhase, i.WarningsIssued, i.IncidentsTriggered, i.LastSeverity)).ToList());
+            _incidentSites.Select(i => new SavedIncidentSite(i.SiteId, i.Strand.ToString(), i.Phase.ToString(), i.TicksInPhase, i.WarningsIssued, i.IncidentsTriggered, i.LastSeverity)).ToList(),
+            _utilitySources.Select(u => new SavedUtilitySource(u.Kind.ToString(), u.NodeId, u.CapacityUnitsPerTick)).ToList(),
+            _investorProposals.Values.Select(p => new SavedInvestorProposal(
+                p.Id, p.FundingAmountThb, p.LedgerKind.ToString(), p.RequiredProjectKind.ToString(),
+                p.ConditionWindowTicks, p.OfferExpiryTick, p.Status.ToString(),
+                p.AcceptedAtTick, p.ConditionDeadlineTick, p.BaselineRequiredKindCount, p.AmountClawedBack)).ToList(),
+            _corruptionCases.Values.Select(c => new SavedCorruptionCase(
+                c.CaseId, c.RelatedCommittedProjectId, c.ContractorLabel, c.AllegedOverpaymentThb, c.Status.ToString(), c.RecoveredAmountThb)).ToList());
 
     private List<SavedLinkQueue> CaptureLinkQueues()
     {
@@ -1258,7 +1335,7 @@ public sealed class WorldState
     }
 
     private static (Dictionary<long, BuildingSimState>, Dictionary<string, HouseholdCohort>) SeedFromGeography(
-        GeographyBase geographyBase, RoadGraph roadGraph, ScenarioConfig scenario, NamedRandomStreams randomStreams)
+        GeographyBase geographyBase, RoadGraph roadGraph, ScenarioConfig scenario, NamedRandomStreams randomStreams, int archetypeCatalogVersion)
     {
         var buildingStates = new Dictionary<long, BuildingSimState>();
         var cohorts = new Dictionary<string, HouseholdCohort>();
@@ -1282,7 +1359,7 @@ public sealed class WorldState
                 continue;
             }
 
-            var archetype = AssignArchetype(building.SourceId);
+            var archetype = AssignArchetype(building.SourceId, archetypeCatalogVersion);
             var jobs = archetype == BuildingArchetype.Residential ? 0 : scenario.JobsPerNonResidentialBuilding;
             buildingStates[building.SourceId] = new BuildingSimState(building.SourceId, archetype, cx, cz, nearestNode.Value, jobs, relocated: false);
 
@@ -1298,15 +1375,32 @@ public sealed class WorldState
     }
 
     /// <summary>Deterministic archetype assignment from a building's
-    /// stable source id -- a pure hash, NOT an RNG draw, so it never
-    /// depends on call order relative to other RNG consumption (see
-    /// DeterministicRandom.HashStep's doc comment).</summary>
-    public static BuildingArchetype AssignArchetype(long sourceId)
-    {
-        var values = (BuildingArchetype[])Enum.GetValues(typeof(BuildingArchetype));
-        var mixed = Thaivia.Core.Simulation.RandomStreams.DeterministicRandom.HashStep(unchecked((ulong)sourceId));
-        return values[(int)(mixed % (ulong)values.Length)];
-    }
+    /// stable source id, resolved against ONE EXPLICIT, pinned
+    /// <paramref name="archetypeCatalogVersion"/> -- a pure hash, NOT an
+    /// RNG draw, so it never depends on call order relative to other RNG
+    /// consumption (see DeterministicRandom.HashStep's doc comment).
+    ///
+    /// ADR-0038 (supersedes ADR-0030 §4): this used to hash modulo
+    /// <c>Enum.GetValues(typeof(BuildingArchetype)).Length</c>, so adding
+    /// one archetype changed the divisor and silently reassigned every
+    /// existing building's archetype. It now resolves against
+    /// <see cref="ArchetypeCatalog.ForVersion"/>'s FROZEN, per-version
+    /// list instead -- a version's list never changes after it ships, so
+    /// calling this with the SAME <paramref name="archetypeCatalogVersion"/>
+    /// forever gives the same answer for the same sourceId, no matter how
+    /// many archetypes are added in later catalog versions. See
+    /// <c>ArchetypeCatalogGrowthTests</c>.</summary>
+    public static BuildingArchetype AssignArchetype(long sourceId, int archetypeCatalogVersion) =>
+        AppendOnlyCatalogAssignment.Assign(sourceId, ArchetypeCatalog.ForVersion(archetypeCatalogVersion));
+
+    /// <summary>Convenience overload resolving against
+    /// <see cref="ArchetypeCatalog.CurrentVersion"/> -- correct for a
+    /// BRAND NEW world/test fixture, but NEVER for reconstructing an
+    /// existing world's buildings (use the pinned
+    /// <see cref="ArchetypeCatalogVersion"/> for that -- see
+    /// <see cref="SeedFromGeography"/>/<see cref="Restore"/>).</summary>
+    public static BuildingArchetype AssignArchetype(long sourceId) =>
+        AssignArchetype(sourceId, ArchetypeCatalog.CurrentVersion);
 
     private static (double X, double Z) Centroid(IReadOnlyList<Vec2> outer)
     {
