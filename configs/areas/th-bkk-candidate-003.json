@@ -1,0 +1,28 @@
+{
+  "$comment": "G6-02 candidate 3rd real area. This bbox is a development-crop HYPOTHESIS, not a coverage claim: no OSM source has been acquired for it (blocked, see docs/decisions/0003), so nothing about what features actually exist inside it is known or asserted. Rationale for choosing this crop is in docs/data/candidate-areas-rationale.md. Do not treat this as usable until a real docs/data/pilot-audit-th-bkk-candidate-003.md exists (G6-03, currently blocked).",
+  "map_id": "th-bkk-candidate-003",
+  "editable_bbox_wgs84_lonlat": [100.553, 13.794, 100.562, 13.803],
+  "context_buffer_m": 300,
+  "candidate_projected_crs": "EPSG:32647",
+  "driving_side": "left",
+  "coverage_status": "UNVERIFIED",
+  "coverage_status_reason": "No OSM source has been acquired for this bbox; source acquisition is blocked by organization egress policy as of 2026-09-20 (see docs/environment.md and ADR-0003). This config only records a candidate crop and a gameplay-problem hypothesis (docs/data/candidate-areas-rationale.md); it does not claim any real feature counts or coverage.",
+  "target_area_sq_km": {
+    "min": 0.5,
+    "max": 1.5,
+    "$comment": "Experimental target from the plan, not a measured result."
+  },
+  "acquire_budget": {
+    "max_download_bytes": 26214400,
+    "$comment_max_download_bytes": "25 MiB soft cap for a small bounded extract of this candidate bbox + context buffer. A country-sized .osm.pbf download requires explicit human approval and must not be triggered automatically.",
+    "connect_timeout_s": 10,
+    "read_timeout_s": 60,
+    "max_retries": 3,
+    "retry_backoff_s": [2, 4, 8],
+    "honor_retry_after_header": true,
+    "max_disk_bytes_cache": 209715200,
+    "$comment_max_disk_bytes_cache": "200 MiB soft cap for everything under data/cache/.",
+    "require_human_approval_above_bytes": 104857600,
+    "$comment_require_human_approval_above_bytes": "Any single acquisition estimated above 100 MiB must stop and ask a human before downloading, per project policy (no automatic country-sized downloads)."
+  }
+}

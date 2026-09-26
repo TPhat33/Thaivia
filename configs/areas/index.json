@@ -5,6 +5,16 @@
       "id": "th-bkk-pilot-001",
       "config_path": "configs/pilot-area.json",
       "notes": "The original G1-G5 pilot area. Omitting --area (or passing --area th-bkk-pilot-001) must behave identically -- this is the back-compat contract G6-01 preserves."
+    },
+    {
+      "id": "th-bkk-candidate-002",
+      "config_path": "configs/areas/th-bkk-candidate-002.json",
+      "notes": "G6-02 candidate 2nd area, coverage_status UNVERIFIED. Rationale: docs/data/candidate-areas-rationale.md. Real acquisition/audit is G6-03 (blocked, see ADR-0003)."
+    },
+    {
+      "id": "th-bkk-candidate-003",
+      "config_path": "configs/areas/th-bkk-candidate-003.json",
+      "notes": "G6-02 candidate 3rd area, coverage_status UNVERIFIED. Rationale: docs/data/candidate-areas-rationale.md. Real acquisition/audit is G6-03 (blocked, see ADR-0003). 3 areas is a scope CEILING (plan sec. 4), not a quota -- shipping fewer than 3 if quality does not clear the bar is an acceptable outcome."
     }
   ]
 }

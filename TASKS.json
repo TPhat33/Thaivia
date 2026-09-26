@@ -998,8 +998,13 @@
         "G6-01"
       ],
       "acceptance_criteria": "Two additional configs/areas/*.json entries with a documented rationale (why this bbox: gameplay problem it can support, e.g. congestion/noise/access mix distinct from th-bkk-pilot-001) and coverage_status=UNVERIFIED (no acquisition performed yet); validates against G6-01's schema. Explicitly note in the config/doc that 3 areas is a scope CEILING (plan §4: 'ไม่ใช่เงื่อนไขที่บังคับให้เพิ่มแม้คุณภาพยังไม่ผ่าน'), not a quota -- fewer than 3 shipped areas is an acceptable outcome if quality does not clear the bar.",
-      "status": "pending",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "configs/areas/th-bkk-candidate-002.json, configs/areas/th-bkk-candidate-003.json (coverage_status=UNVERIFIED)",
+        "configs/areas/index.json updated with both candidates",
+        "docs/data/candidate-areas-rationale.md (bbox rationale, explicit scope-ceiling note)",
+        "docs/evidence/g6-02-pytest-run.log (77 passed), docs/evidence/g6-02-config-validation.log"
+      ]
     },
     {
       "id": "G6-03",
