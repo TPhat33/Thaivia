@@ -1,6 +1,11 @@
 # ADR-0030: ขยาย BuildingArchetype จาก 8 เป็น 12 (หยุดที่ขอบล่างของ ceiling)
 
-- สถานะ: Accepted
+- สถานะ: Accepted — **section 4 ("ผลข้างเคียงที่ต้องแก้: hash modulus")
+  ถูก superseded โดย ADR-0038** (wave 9, Task Zero): mechanism ที่ section
+  4 บันทึกว่าต้องระวัง ("การขยาย enum ต้องตรวจ fixture ใหม่ทุกครั้ง")
+  ถูกแทนที่ด้วย append-only versioned catalog ที่ไม่ reshuffle เมื่อ
+  catalog โตอีกต่อไป — decision เรื่องจำนวน archetype (12, ไม่ใช่ 16) และ
+  ethical review ใน section 1-3 ยังคง Accepted เหมือนเดิม ไม่ถูกแตะต้อง
 - วันที่: 2026-09-26
 - ผู้เกี่ยวข้อง: wave 8 / G6-04 (Opus supervisor brief), spec §4/§16, AGENTS.md ข้อ 9
 - ไม่ supersede ADR ใด
