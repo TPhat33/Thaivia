@@ -76,21 +76,43 @@ public sealed class WorldState
     private readonly Dictionary<long, IReadOnlyList<long>> _waysAtNode;
 
     // --- Per-tick routing graph cache (performance only -- see
-    // docs/evidence/g5-benchmark-*.log and docs/progress.md Session 6 for
-    // the measured motivation). A MobilityGraph is a pure function of
-    // (RoadGraph, mode, _plannedRoadSegments): RoadGraph never changes for
-    // a WorldState instance, and _plannedRoadSegments only ever grows (via
+    // docs/evidence/g5-benchmark-*.log, docs/evidence/g6-*.log and
+    // docs/progress.md Session 6/7 for the measured motivation, and
+    // ADR-0027 for the full invalidation contract this comment
+    // summarizes). A MobilityGraph (including its own internal per-(from,
+    // to) static route cache -- see MobilityGraph's doc comment) is a pure
+    // function of (RoadGraph, mode, _plannedRoadSegments, the set of
+    // fully-closed way ids THIS tick): RoadGraph never changes for a
+    // WorldState instance; _plannedRoadSegments only ever grows (via
     // RegisterPlannedRoadSegment -- never replaced/removed), so its COUNT
-    // is a correct, cheap invalidation signal: rebuilding only when a new
-    // segment was committed since the last build produces byte-identical
+    // is a correct, cheap invalidation signal for it specifically; and the
+    // closed-way set can both grow (a RoadWorksZone starting) and shrink
+    // (one ending, purely from the clock advancing past its
+    // StartTick+DurationTicks window -- no explicit "zone ended" method
+    // call exists, so this MUST be recomputed from live zone state every
+    // tick, not tracked as a monotonic counter). Recomputing the closed-way
+    // set is O(active road-works zones), never O(cohorts) or O(Dijkstra
+    // calls), so doing it every tick is cheap. Rebuilding only when either
+    // signal actually changed since the last build produces byte-identical
     // routing results to rebuilding every tick, just without repeating
-    // O(edges) adjacency-list construction on every one of the ticks in
-    // between. This cache holds no gameplay state of its own (nothing
-    // here is saved/hashed) -- it is exactly as safe to drop and rebuild
-    // as it would be to never have cached at all.
+    // O(edges) adjacency-list construction (and re-populating the route
+    // cache) on every tick in between. This cache holds no gameplay state
+    // of its own (nothing here is saved/hashed) -- it is exactly as safe
+    // to drop and rebuild as it would be to never have cached at all.
+    //
+    // Gateway open/close is deliberately EXCLUDED from this invalidation
+    // signal: a Gateway models a boundary connector for
+    // GatewayFlow's demand accounting only (see StepGateways) -- closing
+    // one stops cross-boundary demand from being GENERATED, it does not
+    // remove any node or edge from the road_graph, so it cannot change
+    // what ShortestRoute returns for any (from, to) pair. See
+    // ADR-0027 and GatewayCloseDoesNotAffectVehicleRoutingTests for the
+    // test proving this claim directly rather than merely asserting it in
+    // a comment.
     private MobilityGraph? _cachedVehicleGraph;
     private MobilityGraph? _cachedWalkGraph;
     private int _cachedGraphSegmentCount = -1;
+    private HashSet<long> _cachedClosedWayIds = new();
 
     /// <summary>Normal construction: seeds cohorts/buildings fresh from
     /// GeographyBase + ScenarioConfig (SimulationInitialization-layer
@@ -378,11 +400,14 @@ public sealed class WorldState
         var tick = Clock.CurrentTick;
 
         var vehicleGraph = GetOrBuildVehicleGraph();
+        var capacityByWayId = ComputeCapacityByWayId(tick);
+        var priorQueueLengthByWay = LinkQueues.QueueLengths; // end of PREVIOUS tick's queue step -- SimulateTick has not stepped any queue yet this tick.
 
         var demandBatches = TripDemandGenerator.GenerateCommuteBatches(_cohorts.Values, _buildingStates, vehicleGraph, hourOfDay);
-        var arrivalsByWay = NetworkDemandAssignment.AssignToWays(vehicleGraph, demandBatches);
+        var arrivalsByWay = NetworkDemandAssignment.AssignToWaysCongestionAware(
+            vehicleGraph, demandBatches, capacityByWayId, PriorQueueLengthByWayId(priorQueueLengthByWay));
 
-        StepLinkQueues(arrivalsByWay, tick);
+        StepLinkQueues(arrivalsByWay, capacityByWayId);
         StepSignals(arrivalsByWay);
         StepBusRoutes(vehicleGraph);
         StepGateways();
@@ -396,7 +421,7 @@ public sealed class WorldState
         return (int)hour;
     }
 
-    private void StepLinkQueues(IReadOnlyDictionary<long, long> arrivalsByWay, long tick)
+    private void StepLinkQueues(IReadOnlyDictionary<long, long> arrivalsByWay, IReadOnlyDictionary<long, int> capacityByWayId)
     {
         // Every way that either has arrivals this tick OR still carries a
         // backlog from a prior tick must be stepped -- a way with neither
@@ -411,15 +436,55 @@ public sealed class WorldState
 
         foreach (var wayId in waysToStep.OrderBy(w => w))
         {
-            if (!_edgesByWayId.TryGetValue(wayId, out var edge))
+            if (!capacityByWayId.TryGetValue(wayId, out var capacity))
             {
                 continue; // a synthetic (player-connector) id never reaches here -- NetworkDemandAssignment already filters those out.
             }
 
-            var capacity = LinkCapacity.EffectiveCapacityVehPerTick(edge, tick, _roadWorksZones);
             var arrivals = arrivalsByWay.TryGetValue(wayId, out var a) ? a : 0;
             LinkQueues.Step(new LinkKey(wayId, Forward: true), arrivals, capacity);
         }
+    }
+
+    /// <summary>This tick's effective vehicle-per-tick capacity for every
+    /// way in RoadGraph (see <see cref="LinkCapacity.EffectiveCapacityVehPerTick"/>)
+    /// -- computed ONCE per tick and shared by both
+    /// <see cref="NetworkDemandAssignment.AssignToWaysCongestionAware"/>
+    /// (as its congestion-cost denominator) and <see cref="StepLinkQueues"/>
+    /// (as the queue's actual discharge capacity), so the two can never
+    /// disagree about what a way's capacity is this tick. O(edges), never
+    /// O(cohorts) -- this is exactly the kind of per-tick cost the g5
+    /// benchmark (ADR-0024) found was NOT the bottleneck (uncached Dijkstra
+    /// calls were); this dictionary build involves no graph search at
+    /// all.</summary>
+    private Dictionary<long, int> ComputeCapacityByWayId(long tick)
+    {
+        var capacityByWayId = new Dictionary<long, int>(_edgesByWayId.Count);
+        foreach (var (wayId, edge) in _edgesByWayId)
+        {
+            capacityByWayId[wayId] = LinkCapacity.EffectiveCapacityVehPerTick(edge, tick, _roadWorksZones);
+        }
+
+        return capacityByWayId;
+    }
+
+    /// <summary>Projects the LinkQueueSimulator's per-<see cref="LinkKey"/>
+    /// backlog (keyed by way+direction) down to a per-way total, for
+    /// <see cref="NetworkDemandAssignment.AssignToWaysCongestionAware"/>'s
+    /// congestion-cost input. Every <see cref="LinkKey"/> this codebase
+    /// currently ever constructs uses Forward=true (see
+    /// <see cref="StepLinkQueues"/>) -- summed rather than assumed-single
+    /// so this stays correct if a Reversed key is ever introduced without
+    /// anyone having to remember to revisit this projection.</summary>
+    private static Dictionary<long, long> PriorQueueLengthByWayId(IReadOnlyDictionary<LinkKey, long> queueLengths)
+    {
+        var byWay = new Dictionary<long, long>();
+        foreach (var (key, length) in queueLengths)
+        {
+            byWay[key.WayId] = (byWay.TryGetValue(key.WayId, out var existing) ? existing : 0) + length;
+        }
+
+        return byWay;
     }
 
     private void StepSignals(IReadOnlyDictionary<long, long> arrivalsByWay)
@@ -658,19 +723,45 @@ public sealed class WorldState
     /// <summary>Returns the cached Vehicle-mode <see cref="MobilityGraph"/>,
     /// rebuilding it (and invalidating the walk-mode cache alongside it --
     /// both derive from the same _plannedRoadSegments) only when a new
-    /// PlannedRoadSegment has been committed since the last build. See
-    /// this type's cache field doc comment for why counting segments is a
-    /// correct invalidation signal.</summary>
+    /// PlannedRoadSegment has been committed OR the set of fully-closed
+    /// road-works ways has changed since the last build. See this type's
+    /// cache field doc comment (ADR-0027) for the full invalidation
+    /// contract and why both signals are needed.</summary>
     private MobilityGraph GetOrBuildVehicleGraph()
     {
-        if (_cachedVehicleGraph is null || _cachedGraphSegmentCount != _plannedRoadSegments.Count)
+        var currentClosedWayIds = ComputeClosedWayIds(Clock.CurrentTick);
+        if (_cachedVehicleGraph is null
+            || _cachedGraphSegmentCount != _plannedRoadSegments.Count
+            || !_cachedClosedWayIds.SetEquals(currentClosedWayIds))
         {
-            _cachedVehicleGraph = new MobilityGraph(RoadGraph, TravelMode.Vehicle, _plannedRoadSegments);
+            _cachedVehicleGraph = new MobilityGraph(RoadGraph, TravelMode.Vehicle, _plannedRoadSegments, closedWayIds: currentClosedWayIds);
             _cachedWalkGraph = null;
             _cachedGraphSegmentCount = _plannedRoadSegments.Count;
+            _cachedClosedWayIds = currentClosedWayIds;
         }
 
         return _cachedVehicleGraph;
+    }
+
+    /// <summary>Way ids currently fully impassable to Vehicle/Freight
+    /// traffic: any <see cref="RoadWorksZone"/> active at <paramref
+    /// name="tick"/> whose <see cref="RoadWorksZone.CapacityMultiplierDuringConstruction"/>
+    /// is at or below 0 (see that field's own doc comment: "callers that
+    /// truly need a hard closure can still pass 0.0"). O(active zones),
+    /// never proportional to cohort/building/Dijkstra-call counts -- safe
+    /// to call every tick from <see cref="GetOrBuildVehicleGraph"/>.</summary>
+    private HashSet<long> ComputeClosedWayIds(long tick)
+    {
+        var closed = new HashSet<long>();
+        foreach (var zone in _roadWorksZones)
+        {
+            if (zone.IsActiveAt(tick) && zone.CapacityMultiplierDuringConstruction <= 0)
+            {
+                closed.Add(zone.WayId);
+            }
+        }
+
+        return closed;
     }
 
     private MobilityGraph GetOrBuildWalkGraph()

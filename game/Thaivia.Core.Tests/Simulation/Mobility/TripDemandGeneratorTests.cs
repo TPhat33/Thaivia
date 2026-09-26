@@ -62,7 +62,7 @@ public class TripDemandGeneratorTests
         var vehicleGraph = new MobilityGraph(SimulationFixtures.BuildRoadGraph(), TravelMode.Vehicle, new[] { connector });
 
         var batches = new List<OdBatch> { new(SimulationFixtures.Node1, SimulationFixtures.Node5, TravelMode.Vehicle, VehicleCount: 40, CohortId: "cohort-1") };
-        var arrivals = NetworkDemandAssignment.AssignToWays(vehicleGraph, batches);
+        var arrivals = NetworkDemandAssignment.AssignToWaysAllOrNothing(vehicleGraph, batches);
 
         // The path node1->node2 (way 101) -> node3->node4->node5 (way 102)
         // -- the synthetic bridge connector's negative id is excluded.
@@ -81,7 +81,7 @@ public class TripDemandGeneratorTests
             new(SimulationFixtures.Node2, SimulationFixtures.Node1, TravelMode.Vehicle, 15, "cohort-b"),
         };
 
-        var arrivals = NetworkDemandAssignment.AssignToWays(vehicleGraph, batches);
+        var arrivals = NetworkDemandAssignment.AssignToWaysAllOrNothing(vehicleGraph, batches);
         Assert.Equal(25, arrivals[101]); // both batches use way 101, opposite directions, aggregated per-way.
     }
 }

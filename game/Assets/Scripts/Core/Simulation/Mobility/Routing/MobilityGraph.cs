@@ -66,17 +66,32 @@ public sealed class MobilityGraph
     /// actually routes over, as distinct from the general walking graph
     /// (false). See CrossingsTests for the test proving this changes which
     /// routes are computed.</param>
+    /// <param name="closedWayIds">Way ids that are currently fully
+    /// impassable for Vehicle/Freight (a <see cref="RoadWorks.RoadWorksZone"/>
+    /// with <see cref="RoadWorks.RoadWorksZone.CapacityMultiplierDuringConstruction"/>
+    /// at or below 0 -- see that type's doc comment: "callers that truly
+    /// need a hard closure can still pass 0.0"). Zero effective capacity
+    /// means zero vehicles can physically traverse it, so it is excluded
+    /// from the adjacency list entirely rather than merely made
+    /// expensive -- this is a real availability change, not a routing
+    /// heuristic. Deliberately NOT applied to <see cref="TravelMode.Walk"/>:
+    /// a road closed to vehicle traffic during construction does not, by
+    /// itself, establish that its footway/verge is also impassable, and
+    /// this codebase does not assume facts it was not given (AGENTS.md
+    /// rule 4) -- ignored for Walk.</param>
     public MobilityGraph(
         RoadGraph roadGraph,
         TravelMode mode,
         IReadOnlyList<PlannedRoadSegment>? extraSegments = null,
         IReadOnlyList<Crossings.PedestrianCrossing>? crossings = null,
-        bool requireAccessibleCrossings = false)
+        bool requireAccessibleCrossings = false,
+        IReadOnlySet<long>? closedWayIds = null)
     {
         Mode = mode;
         _respectsOneway = mode != TravelMode.Walk;
         _respectsTurnRestrictions = mode != TravelMode.Walk;
         _turnIndex = new RoadGraphIndex(roadGraph);
+        var appliesClosures = mode != TravelMode.Walk && closedWayIds is { Count: > 0 };
 
         var nodeById = new Dictionary<long, RoadGraphNode>();
         foreach (var node in roadGraph.Nodes)
@@ -89,6 +104,11 @@ public sealed class MobilityGraph
             if (!ModeAccess.IsAllowed(edge, mode))
             {
                 continue;
+            }
+
+            if (appliesClosures && closedWayIds!.Contains(edge.WayId))
+            {
+                continue; // fully closed this tick -- not part of the routable graph at all, for Vehicle/Freight.
             }
 
             for (var i = 0; i < edge.NodeRefs.Count - 1; i++)
@@ -173,18 +193,72 @@ public sealed class MobilityGraph
 
     public readonly record struct Route(double DistanceMeters, IReadOnlyList<long> WayIdsInOrder);
 
+    /// <summary>Per-(from,to) memoized result of a STATIC (no
+    /// <c>wayCostMultiplier</c>) <see cref="ShortestRoute"/> call -- see
+    /// ADR-0027. A resolved OD route cannot change tick-to-tick unless this
+    /// graph's topology changes, and this graph's adjacency is fixed for
+    /// the lifetime of the instance (built once, in the constructor, never
+    /// mutated afterward) -- so keying the cache to the INSTANCE itself,
+    /// rather than to some separately tracked "is it still valid" flag, is
+    /// the entire invalidation contract: a stale entry is structurally
+    /// impossible as long as nobody keeps using an old instance past the
+    /// point where <see cref="WorldState.GetOrBuildVehicleGraph"/>/
+    /// <see cref="WorldState.GetOrBuildWalkGraph"/> would have rebuilt it.
+    /// A route that legitimately does not exist is cached as a null
+    /// <see cref="Route"/> too (a nullable value in the dictionary,
+    /// distinguished from "not yet computed" by TryGetValue's own bool),
+    /// so an unreachable pair is not re-searched every tick either.</summary>
+    private readonly Dictionary<(long From, long To), Route?> _staticRouteCache = new();
+
     /// <summary>Turn-aware shortest route. Returns null when no path exists
     /// under this mode's access/oneway/turn-restriction rules -- never a
-    /// straight-line fallback (same discipline as AccessibilityGraph).</summary>
-    public Route? ShortestRoute(long fromNodeId, long toNodeId)
+    /// straight-line fallback (same discipline as AccessibilityGraph).
+    ///
+    /// <paramref name="wayCostMultiplier"/> is null for every caller before
+    /// Debt 2 (see ADR-0026/ADR-0027) and for every caller that wants real
+    /// free-flow distance today (job-search, bus walking-reach, safety
+    /// proximity, accessibility score) -- that path is cached per this
+    /// type's <see cref="_staticRouteCache"/> doc comment. When non-null
+    /// (only <see cref="Demand.NetworkDemandAssignment.AssignToWaysCongestionAware"/>
+    /// passes one), each candidate edge's search WEIGHT is
+    /// <c>length * wayCostMultiplier(wayId)</c> so the search can prefer a
+    /// congested-but-short way less than an uncongested-but-longer one --
+    /// but the returned <see cref="Route.DistanceMeters"/> is always the
+    /// chosen path's true physical length, computed alongside the weighted
+    /// search, never the weighted cost itself (a caller reading
+    /// DistanceMeters must always get real metres). This dynamic path is
+    /// deliberately NEVER cached: the whole point is that congestion
+    /// changes what "shortest" means from one call to the next within the
+    /// same tick (successive slices) and across ticks, so memoizing it
+    /// would silently reintroduce the exact staleness bug the static cache
+    /// above is built to avoid.</summary>
+    public Route? ShortestRoute(long fromNodeId, long toNodeId, Func<long, double>? wayCostMultiplier = null)
     {
         if (fromNodeId == toNodeId)
         {
             return new Route(0, Array.Empty<long>());
         }
 
+        if (wayCostMultiplier is null && _staticRouteCache.TryGetValue((fromNodeId, toNodeId), out var cachedRoute))
+        {
+            return cachedRoute;
+        }
+
+        var result = ComputeShortestRoute(fromNodeId, toNodeId, wayCostMultiplier);
+
+        if (wayCostMultiplier is null)
+        {
+            _staticRouteCache[(fromNodeId, toNodeId)] = result;
+        }
+
+        return result;
+    }
+
+    private Route? ComputeShortestRoute(long fromNodeId, long toNodeId, Func<long, double>? wayCostMultiplier)
+    {
         var start = (Node: fromNodeId, ViaWayId: NoPriorWay);
-        var dist = new Dictionary<(long Node, long ViaWayId), double> { [start] = 0 };
+        var cost = new Dictionary<(long Node, long ViaWayId), double> { [start] = 0 };
+        var physicalDistance = new Dictionary<(long Node, long ViaWayId), double> { [start] = 0 };
         var prev = new Dictionary<(long Node, long ViaWayId), (long Node, long ViaWayId)>();
         var visited = new HashSet<(long, long)>();
         var queue = new PriorityQueue<(long Node, long ViaWayId), double>();
@@ -199,7 +273,7 @@ public sealed class MobilityGraph
 
             if (current.Node == toNodeId)
             {
-                return new Route(dist[current], ReconstructWayIds(prev, current));
+                return new Route(physicalDistance[current], ReconstructWayIds(prev, current));
             }
 
             if (!_adjacency.TryGetValue(current.Node, out var steps))
@@ -218,13 +292,15 @@ public sealed class MobilityGraph
                     }
                 }
 
+                var weight = wayCostMultiplier is null ? length : length * wayCostMultiplier(wayId);
                 var next = (to, wayId);
-                var candidate = dist[current] + length;
-                if (!dist.TryGetValue(next, out var existing) || candidate < existing)
+                var candidateCost = cost[current] + weight;
+                if (!cost.TryGetValue(next, out var existingCost) || candidateCost < existingCost)
                 {
-                    dist[next] = candidate;
+                    cost[next] = candidateCost;
+                    physicalDistance[next] = physicalDistance[current] + length;
                     prev[next] = current;
-                    queue.Enqueue(next, candidate);
+                    queue.Enqueue(next, candidateCost);
                 }
             }
         }
