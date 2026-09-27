@@ -1,7 +1,6 @@
 # HANDOFF.md — สรุปสถานะเพื่อส่งงานต่อให้ agent ตัวถัดไป
 
-อัปเดตล่าสุด: 2026-09-27 · commit ฐาน: `b395854` · branch: `main` และ
-`claude/sonnet-5-implementation-pcqfib` (ชี้ commit เดียวกัน)
+อัปเดตล่าสุด: 2026-09-27 · branch ที่ให้ทำงานต่อ: **`main`** (default branch ของ repo)
 
 เอกสารนี้เขียนให้ **coding agent ที่ทำงานต่อบนเครื่อง local** อ่านก่อนเริ่ม
 ถ้าขัดกับความเคยชินทั่วไปของ AI assistant ให้ยึด `AGENTS.md` เป็นใหญ่ที่สุด
@@ -179,6 +178,10 @@ Editor/Hub ด้วย script ที่ idempotent) แล้วไล่ `G2-0
 
 ## 9. หมายเหตุเรื่อง branch
 
-`main` กับ `claude/sonnet-5-implementation-pcqfib` ชี้ commit เดียวกัน
-(`b395854`) **default branch บน GitHub ยังชี้ branch `claude/...`** อยู่
-ถ้าอยากให้ `main` เป็นหลัก ต้องเปลี่ยนที่ GitHub → Settings → Branches
+`main` เป็น **default branch** ของ repo แล้ว และเป็น branch ที่ให้ทำงานต่อ
+`claude/sonnet-5-implementation-pcqfib` เป็น branch ประวัติของ 9 sessions แรก
+ชี้ commit เดียวกัน (`884046a`) เก็บไว้อ้างอิง ไม่ต้องพัฒนาต่อบนนั้น
+
+```bash
+git clone https://github.com/TPhat33/Thaivia.git   # ได้ main มาเลย
+```
